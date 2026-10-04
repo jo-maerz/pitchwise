@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------- Pitchwise */
+
+:root {
+    --pi-surface: #fcfcfb;
+    --pi-text: #0b0b0b;
+    --pi-text-secondary: #52514e;
+    --pi-grid: #e4e3df;
+    --pi-series-1: #2a78d6;
+    /* verdict colours: always shown with a word or arrow, never alone */
+    --pi-in-tune: #0ca30c;
+    --pi-sharp: #e34948;
+    --pi-flat: #2a78d6;
+    --pi-wrong: #4a3aa7;
+    --pi-missed: #a8a7a2;
+    --pi-neutral: #a8a7a2;
+}
+
+[data-verdict="in_tune"] { --pi-v: var(--pi-in-tune); }
+[data-verdict="sharp"] { --pi-v: var(--pi-sharp); }
+[data-verdict="flat"] { --pi-v: var(--pi-flat); }
+[data-verdict="wrong_note"] { --pi-v: var(--pi-wrong); }
+[data-verdict="missed"] { --pi-v: var(--pi-missed); }
+
+/* Score: colour noteheads by verdict (CSS beats VexFlow's fill attributes). */
+.pi-score { background: #fff; overflow-x: auto; }
+.pi-score g[data-verdict] .vf-notehead path,
+.pi-score g[data-verdict] .vf-notehead,
+.pi-score path[data-verdict] { fill: var(--pi-v); stroke: var(--pi-v); }
+.pi-score g[data-verdict="missed"] .vf-notehead path { fill: none; stroke-width: 1.5; }
+
+/* Tuner dial */
+.pi-gauge { display: flex; flex-direction: column; align-items: center; }
+.pi-gauge svg { width: 100%; max-width: 320px; height: auto; overflow: visible; }
+.pi-gauge-track { fill: none; stroke: var(--pi-grid); stroke-width: 16; stroke-linecap: round; }
+.pi-gauge-band { fill: none; stroke: var(--pi-in-tune); stroke-opacity: .28; stroke-width: 16; }
+.pi-gauge-tick { stroke: var(--pi-text-secondary); stroke-width: 1.5; }
+.pi-gauge-label { fill: var(--pi-text-secondary); font-size: 11px; }
+.pi-gauge-needle {
+    stroke: var(--pi-text); stroke-width: 3; stroke-linecap: round;
+    transform-box: view-box; transform-origin: 150px 150px; transition: transform 90ms linear, stroke 120ms;
+}
+.pi-gauge[data-state="in_tune"] .pi-gauge-needle { stroke: var(--pi-in-tune); }
+.pi-gauge[data-state="sharp"] .pi-gauge-needle { stroke: var(--pi-sharp); }
+.pi-gauge[data-state="flat"] .pi-gauge-needle { stroke: var(--pi-flat); }
+.pi-gauge[data-state="wrong_note"] .pi-gauge-needle { stroke: var(--pi-wrong); }
+.pi-gauge-hub { fill: var(--pi-text); }
+.pi-gauge-readout { text-align: center; margin-top: .25rem; }
+.pi-gauge-caption { color: var(--pi-text-secondary); font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
+.pi-gauge-verdict { font-size: 1.6rem; font-weight: 600; line-height: 1.2; min-height: 2rem; color: var(--pi-text); }
+.pi-gauge[data-state="in_tune"] .pi-gauge-verdict { color: #087a08; }
+.pi-gauge[data-state="sharp"] .pi-gauge-verdict { color: #b8302f; }
+.pi-gauge[data-state="flat"] .pi-gauge-verdict { color: #1c5cab; }
+.pi-gauge[data-state="wrong_note"] .pi-gauge-verdict { color: var(--pi-wrong); }
+.pi-gauge[data-state="idle"] .pi-gauge-verdict { color: var(--pi-text-secondary); font-weight: 400; font-size: 1.1rem; }
+.pi-gauge-detail { color: var(--pi-text-secondary); font-variant-numeric: tabular-nums; }
+
+/* Chips, dots, tables */
+.pi-dot { display: inline-block; width: .65rem; height: .65rem; border-radius: 999px; background: var(--pi-v, var(--pi-neutral)); margin-right: .4rem; }
+.pi-chip { display: inline-flex; align-items: center; gap: .25rem; padding: .25rem .6rem; border-radius: 999px; background: #f3f2ef; font-size: .875rem; }
+.pi-table { width: 100%; font-size: .875rem; border-collapse: collapse; }
+.pi-table th { text-align: left; color: var(--pi-text-secondary); font-weight: 500; border-bottom: 1px solid var(--pi-grid); padding: .35rem .5rem; }
+.pi-table td { border-bottom: 1px solid #f0efec; padding: .35rem .5rem; font-variant-numeric: tabular-nums; }
+
+.pi-countdown {
+    position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none;
+    font-size: 9rem; font-weight: 700; color: rgba(11, 11, 11, .18); z-index: 40;
+}
+.pi-toast {
+    position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); z-index: 50;
+    background: #1a1a19; color: #fff; padding: .75rem 1.1rem; border-radius: .6rem; box-shadow: 0 6px 24px rgba(0,0,0,.2);
+    max-width: calc(100vw - 2rem);
+}
+.pi-strings li { display: flex; justify-content: space-between; padding: .4rem .6rem; border-radius: .4rem; }
+.pi-strings li.is-active { background: #e7f5e7; }
+
+[hidden] { display: none !important; }

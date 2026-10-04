@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <work><work-title>Edge Cases</work-title></work>
+  <identification><creator type="composer">Test</creator></identification>
+  <part-list>
+    <score-part id="P1"><part-name>Violin</part-name></score-part>
+    <score-part id="P2"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <!-- pickup bar: one eighth note in 6/8 -->
+    <measure number="0">
+      <attributes><divisions>2</divisions><time><beats>6</beats><beat-type>8</beat-type></time></attributes>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice></note>
+    </measure>
+    <measure number="1">
+      <!-- grace note: skipped, takes no time -->
+      <note><grace/><pitch><step>F</step><alter>1</alter><octave>4</octave></pitch><voice>1</voice></note>
+      <!-- double stop: only the first written note counts -->
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice></note>
+      <note><chord/><pitch><step>B</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice></note>
+      <!-- a tie start with no matching stop changes nothing -->
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>2</duration><tie type="start"/><voice>1</voice></note>
+      <!-- second voice in the same bar: skipped, does not move voice 1's time -->
+      <backup><duration>4</duration></backup>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>2</voice></note>
+      <backup><duration>4</duration></backup>
+      <forward><duration>4</duration></forward>
+      <note><rest/><duration>1</duration><voice>1</voice></note>
+      <!-- B-flat tied over the barline: one note of 0.5 + 0.5 beats -->
+      <note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><tie type="start"/><voice>1</voice></note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>B</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><tie type="stop"/><voice>1</voice></note>
+      <note><cue/><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice></note>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>4</duration><voice>1</voice></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="0"><note><pitch><step>C</step><octave>2</octave></pitch><duration>1</duration></note></measure>
+  </part>
+</score-partwise>
