@@ -1,0 +1,78 @@
+# Whole stack: docker compose up -d --build
+# First-time setup is in README.md ("Docker").
+x-app: &app
+  build:
+    context: .
+    target: app
+  image: practice-insights-app
+  env_file: .env.docker
+  restart: unless-stopped
+  volumes:
+    - storage:/var/www/html/storage   # uploaded scores: shared by site, queue worker and scheduler
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  # HTTPS, static files, routing of / and /api/v1.
+  web:
+    build:
+      context: .
+      target: web
+    image: practice-insights-web
+    env_file: .env.docker
+    restart: unless-stopped
+    ports:
+      - "80:80"     # redirects to https; also used for certificate issuance
+      - "443:443"
+    volumes:
+      - caddy_data:/data     # certificates: keep this volume, or Let's Encrypt limits will bite
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # Laravel website + plain-PHP API (php-fpm). Runs migrations on start.
+  app:
+    <<: *app
+    environment:
+      RUN_MIGRATIONS: "true"
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 5s
+      retries: 30
+
+  # Parses uploaded MusicXML.
+  queue:
+    <<: *app
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # Rolls finished runs into dashboard stats every five minutes.
+  scheduler:
+    <<: *app
+    command: php artisan schedule:work
+    depends_on:
+      app:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      MYSQL_DATABASE: practice_insights
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      retries: 30
+
+volumes:
+  storage:
+  dbdata:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,31 @@
+# SITE_ADDRESS decides how HTTPS is obtained:
+#   localhost        -> Caddy's own local CA (certificate is valid but not trusted until you trust the CA)
+#   app.example.com  -> a real Let's Encrypt certificate, issued and renewed automatically
+#                       (needs DNS pointing here and ports 80 and 443 reachable from the internet)
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		# The tuner needs the microphone; nothing else is allowed to ask for it.
+		Permissions-Policy "microphone=(self), camera=(), geolocation=()"
+		-Server
+	}
+
+	# The plain-PHP API, same origin as the site, so no CORS is involved.
+	handle /api/v1/* {
+		root * /var/www/html/api/public
+		php_fastcgi app:9000 {
+			try_files /index.php
+		}
+	}
+
+	# The Laravel site. Static files (public/build, favicon) are served by Caddy itself.
+	handle {
+		root * /var/www/html/public
+		php_fastcgi app:9000
+		file_server
+	}
+}

@@ -97,6 +97,27 @@ Relevant `.env` keys (all in `.env.example`):
 
 In production, serve the API from the same host under `/api/v1` (an nginx `location /api/v1` pointing at `api/public/index.php`), set `PRACTICE_API_URL=/api/v1`, and CORS stops mattering.
 
+## Docker (one command, HTTPS included)
+
+Replaces the four terminals. Five containers: `web` (Caddy: HTTPS, static files, routes `/` to Laravel and `/api/v1` to the plain-PHP API), `app` (php-fpm, runs migrations on start), `queue`, `scheduler` and `db` (MySQL).
+
+```bash
+cp .env.docker.example .env.docker
+# set APP_KEY (see the comment in the file), DB_PASSWORD and MYSQL_ROOT_PASSWORD
+docker compose up -d --build
+docker compose exec app su-exec www-data php artisan db:seed --force   # optional demo data
+```
+
+Open https://localhost. Caddy signs `localhost` with its own CA, so the browser warns until you trust it:
+
+```bash
+docker compose cp web:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt   # then add it to your keychain
+```
+
+**Real domain:** set `SITE_ADDRESS=app.example.com` and `APP_URL=https://app.example.com` in `.env.docker`, point DNS at the host, open ports 80 and 443. Caddy gets and renews a Let's Encrypt certificate itself. Keep the `caddy_data` volume.
+
+Data lives in the volumes `dbdata` (MySQL) and `storage` (uploaded scores). Back both up. `docker compose down` keeps them; `down -v` deletes them.
+
 ### Why there is no composer.lock
 
 This first version was built in a sandbox without Packagist or npm access; PHP packages were mirrored from GitHub tags. That lock file pointed at local paths, so it was removed. Run `composer install` once and commit the `composer.lock` it writes; same for `package-lock.json` after `npm install`.
