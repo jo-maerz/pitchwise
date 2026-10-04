@@ -12,6 +12,6 @@ class UpdatePieceRequest extends StorePieceRequest
     /** Same rules as an upload, except the file is only needed when replacing the score. */
     public function rules(): array
     {
-        return ['score' => ['nullable', 'file', 'max:'.config('practice.max_upload_kb')]] + parent::rules();
+        return ['score' => ['nullable', 'file', 'max:'.config('practice.max_pdf_kb')]] + parent::rules();
     }
 }

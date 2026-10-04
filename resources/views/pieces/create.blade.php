@@ -9,11 +9,24 @@
                 @csrf
 
                 <div>
-                    <x-input-label for="score" :value="__('MusicXML file')" />
-                    <input id="score" name="score" type="file" accept=".musicxml,.xml,.mxl" required
+                    <x-input-label for="score" :value="__('Score file (MusicXML or PDF)')" />
+                    <input id="score" name="score" type="file" accept=".musicxml,.xml,.mxl,.pdf" required
                            class="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2" />
                     <p class="mt-1 text-sm text-gray-500">Export from MuseScore, Sibelius, Finale or Dorico as MusicXML. Use a public-domain or your own score.</p>
                     <x-input-error :messages="$errors->get('score')" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-input-label for="pdf" :value="__('Original PDF (optional)')" />
+                    <input id="pdf" name="pdf" type="file" accept=".pdf"
+                           class="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2" />
+                    <x-input-error :messages="$errors->get('pdf')" class="mt-2" />
+                </div>
+
+                <div class="rounded-md bg-gray-50 p-3 text-sm text-gray-600 space-y-2">
+                    <p><strong>MusicXML</strong>: the app knows every note, follows you through the piece and checks each one. Best results.</p>
+                    <p><strong>MusicXML + the original PDF</strong>: the same, and you can also practise from the PDF page you know.</p>
+                    <p><strong>PDF only</strong>: the app first tries to read the notes from the picture (a few minutes, often with mistakes; you check the result). Or you can use the PDF with the live tuner alone: it shows the nearest note and how far off you are, but cannot tell whether it is the note the score asks for, so results may be restricted and inaccurate.</p>
                 </div>
 
                 <div>

@@ -37,6 +37,7 @@ flowchart LR
 | Controllers → Services → Repositories → Eloquent | `app/Http/Controllers`, `app/Services`, `app/Repositories`, `app/Models` |
 | Validation / access | `app/Http/Requests/StorePieceRequest.php`, `app/Policies/*` |
 | MusicXML → expected notes (XMLReader, streaming) | `app/Services/MusicXml/MusicXmlParser.php`, queued by `app/Jobs/ParseMusicXml.php` |
+| PDF → MusicXML (Audiveris, optical music recognition) | `app/Jobs/ConvertPdfScore.php`, `app/Services/Omr/OmrSpool.php` (file hand-over), `app/Services/Omr/ScoreSanity.php`, worker `docker/omr/watch.sh` |
 | Per-pitch statistics | `app/Services/PitchStatsAggregator.php`, command `practice:aggregate-stats`, scheduled in `routes/console.php` |
 | Plain-PHP API | `api/public/index.php` (front controller), `api/src/*` (namespace `PracticeApi\`) |
 | Pitch rule (PHP) | `api/src/Verdict.php` |
@@ -79,7 +80,7 @@ Then four processes (four terminals, or Laravel Sail / Herd if you prefer):
 ```bash
 php artisan serve                        # website   http://localhost:8000
 composer serve-api                       # API       http://127.0.0.1:8001/api/v1
-php artisan queue:work                   # parses uploaded MusicXML
+php artisan queue:work                   # parses uploaded MusicXML, hands PDFs to Audiveris (see PDF scores)
 php artisan schedule:work                # rolls finished runs into the dashboard stats every 5 min
 ```
 
@@ -118,6 +119,32 @@ docker compose cp web:/data/caddy/pki/authorities/local/root.crt ./caddy-root.cr
 
 Data lives in the volumes `dbdata` (MySQL) and `storage` (uploaded scores). Back both up. `docker compose down` keeps them; `down -v` deletes them.
 
+### PDF scores (Audiveris)
+
+A PDF is a picture, so it is turned into MusicXML first by [Audiveris](https://github.com/Audiveris/audiveris) (open-source optical music recognition). Flow: upload → `ConvertPdfScore` job copies the PDF to `<spool>/in/<id>.pdf` → the Audiveris worker (`docker/omr/watch.sh`) writes `<spool>/out/<id>.mxl` or `<id>.failed` → the job stores the MusicXML and parses it as usual → status `needs_review`. The job does not block the queue worker: it re-checks every 5 s (`practice.omr.wait_minutes`, default 20, then the piece is marked failed).
+
+Recognition is a guess, so a PDF-sourced piece **cannot be practised until its owner confirms it**. The piece page shows the recognised score (OSMD) and warnings from `ScoreSanity` (bars holding more beats than the time signature allows); the owner confirms, or uploads corrected MusicXML instead.
+
+- **Docker:** the `omr` service does all of this. It is `linux/amd64` only (Audiveris ships an Ubuntu x86-64 package with its own Java), so on Apple Silicon it runs under emulation: slower, still works. Image ≈ 1 GB.
+- **Without Docker:** install Audiveris, then `AUDIVERIS=audiveris OMR_SPOOL=storage/app/private/omr sh docker/omr/watch.sh` next to `queue:work`.
+- **Limits:** PDFs up to 20 MB; Audiveris refuses pages over 20 megapixels (use A4/Letter pages). Works on clean printed parts; handwriting, skewed photos and dense piano scores come out poorly. Only the first movement is read.
+- **Verified:** a PDF engraved from the demo "Twinkle" score came back with all 42 notes, pitches and durations identical, through the real container. Not verified: scans, multi-page PDFs, the in-browser review preview (OSMD) and the full `docker compose up` stack.
+
+### MusicXML + PDF, and PDF-only practice
+
+A piece can hold both files. The MusicXML gives the full player (note map, verdicts, reports); the original PDF is kept next to it. Upload both on **Upload a score** (`score` = MusicXML or PDF, optional `pdf` = original PDF), or add either later with **Edit piece**. With MusicXML present the PDF is never recognised. A PDF is only recognised when it is the only file.
+
+| Piece state (`parse_status`) | Full player (`play`) | PDF page (`playPdf`, `/pieces/{id}/play-pdf`) |
+|---|---|---|
+| `ready` | yes | yes, if it has a PDF |
+| `needs_review` (recognised, unconfirmed) | no | yes |
+| `pdf_only` (owner dropped the recognised score, or chose the PDF) | no | yes |
+| `failed` with a PDF | no | no until the owner picks "Use the PDF with the tuner" (`POST /pieces/{id}/use-pdf`, also offered from `needs_review`) |
+
+The PDF page (`resources/views/player/pdf.blade.php`, `resources/js/pdf-player.js`, pdf.js draws the pages) has no notes to follow, so the target is **the nearest note** to what you play, as on the standalone tuner. `practice/free-play.js` (`NoteSegmenter`, tested in `tests/js/free-play.test.mjs`) cuts the pitch frames into played notes and the page lists each with its offset in cents. A different pitch must last 4 frames to count as a new note, silence ends a note after 100 ms, sounds under 90 ms are dropped. The page and the piece page say that results may be restricted and inaccurate (a wrong note is judged against its neighbour). **Nothing from this mode is saved**: no session, no report, no dashboard stats, because the API only accepts notes that exist in `piece_notes`. Saving nearest-note results as pitch stats would be a separate feature.
+
+**Verified:** PDF page drawn in a browser (2-page PDF), and a synthetic tone fed through the whole chain (microphone → pitchy → nearest note → log): +40 cents on A4 shown as "Too high", −15 on B4 as "In tune", −35 on C5 as "Too low". Not verified with a real microphone or instrument, and not on a phone.
+
 ### Why there is no composer.lock
 
 This first version was built in a sandbox without Packagist or npm access; PHP packages were mirrored from GitHub tags. That lock file pointed at local paths, so it was removed. Run `composer install` once and commit the `composer.lock` it writes; same for `package-lock.json` after `npm install`.
@@ -150,6 +177,10 @@ The playbook first had the wrong-note boundary at 100 cents. A clean semitone sl
    - The dial compares the median of the last 3 clear frames to the note being heard now.
 4. When a note's window closes: median of its clear frames → `judge()` → notehead coloured.
 5. At the end of each page, and at the end: `POST /sessions/{id}/results` with that batch (`finished: true` on the last). The server's verdicts replace the browser's if they ever differ. The end-of-run panel shows the score, per-page table, bars to practise and the notes furthest off; the saved report is `/sessions/{id}`.
+
+### Wait-for-me mode
+
+`resources/js/practice/wait-mode.js` (`WaitFollower`, pure logic, tested in `tests/js/wait-mode.test.mjs`) replaces the tempo clock: the cursor sits on a note until frames within ±50 cents of it have been heard for 150 ms (dropouts under 60 ms are tolerated; a repeated pitch needs 80 ms of silence first). The accepted frames go through the same `finalize()` → `judge()` → batch-upload path as a timed run, so verdicts, reports and server re-judging are unchanged. Skip records the note as missed. Runs still store `bpm` and `latency_ms` (the page's values, unused in this mode); the run does not record which mode was used. After a note is accepted the follower is `lingering`: the old pitch is ignored (and the dial stays quiet) until a different pitch is heard, the sound stops for 80 ms, or the loudness dips and rises by 3 dB (a new attack). That is how repeated notes advance without a pause, and why `audio.js` now reports a `level` per frame.
 
 ## API reference
 

@@ -6,7 +6,6 @@ namespace PracticeApi\Http;
 
 final class Response
 {
-    /** @param array<string, string> $headers */
     public function __construct(
         public readonly int $status,
         public readonly ?array $data = null,

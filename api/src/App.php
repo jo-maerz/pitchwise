@@ -11,15 +11,11 @@ use PracticeApi\Http\Request;
 use PracticeApi\Http\Response;
 use Throwable;
 
-/**
- * The plain-PHP API: three routes, a token check, JSON in and out.
- * No framework on purpose; this mirrors the "web services" side of a two-system setup.
- */
+
 final class App
 {
     private const PREFIX = '/api/v1';
 
-    /** @param list<string> $allowedOrigins */
     public function __construct(
         private readonly PDO $pdo,
         private readonly array $allowedOrigins = [],
@@ -93,7 +89,6 @@ final class App
         }
     }
 
-    /** @return array<string, string> */
     private function corsHeaders(Request $request): array
     {
         $origin = $request->header('origin');

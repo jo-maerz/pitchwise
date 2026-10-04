@@ -20,6 +20,7 @@ export function loadSettings(defaults) {
         toleranceMode: defaults.toleranceMode ?? 'cents',
         toleranceValue: defaults.toleranceValue ?? 30,
         referenceHz: defaults.referenceHz ?? 440,
+        mode: 'follow', // 'follow' the tempo, or 'wait' for the player
         latencyMs: 80,
         noiseGateDb: -30,
         countIn: true,

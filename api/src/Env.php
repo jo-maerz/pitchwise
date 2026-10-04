@@ -4,13 +4,8 @@ declare(strict_types=1);
 
 namespace PracticeApi;
 
-/**
- * Reads the Laravel app's .env so both systems use the same database settings.
- * Real environment variables win over the file, as in Laravel.
- */
 final class Env
 {
-    /** @var array<string, string> */
     private array $values = [];
 
     public function __construct(string $envFile)

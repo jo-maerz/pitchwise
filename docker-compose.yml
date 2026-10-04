@@ -50,6 +50,19 @@ services:
       app:
         condition: service_healthy
 
+  # Reads PDF scores with Audiveris and hands the MusicXML back through the shared storage volume.
+  # Without it, PDF uploads wait for their deadline and then fail; MusicXML uploads are unaffected.
+  omr:
+    build:
+      context: .
+      target: omr
+    image: practice-insights-omr
+    restart: unless-stopped
+    environment:
+      OMR_SPOOL: /storage/app/private/omr
+    volumes:
+      - storage:/storage
+
   # Rolls finished runs into dashboard stats every five minutes.
   scheduler:
     <<: *app

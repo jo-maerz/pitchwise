@@ -15,6 +15,7 @@ class Piece extends Model
     protected $fillable = [
         'owner_id', 'title', 'composer', 'instrument', 'musicxml_path',
         'default_bpm', 'beats_per_measure', 'note_count', 'parse_status',
+        'source_pdf_path', 'review_notes',
     ];
 
     protected function casts(): array
@@ -49,6 +50,28 @@ class Piece extends Model
     public function isReady(): bool
     {
         return $this->parse_status === 'ready';
+    }
+
+    public function hasPdf(): bool
+    {
+        return $this->source_pdf_path !== null;
+    }
+
+    /** Practising from the PDF alone: no notes to follow, just the live tuner next to the page. */
+    public function isPdfOnly(): bool
+    {
+        return $this->parse_status === 'pdf_only';
+    }
+
+    public function needsReview(): bool
+    {
+        return $this->parse_status === 'needs_review';
+    }
+
+    /** Still being worked on by the queue: the page refreshes itself while this is true. */
+    public function isProcessing(): bool
+    {
+        return in_array($this->parse_status, ['pending', 'converting'], true);
     }
 
     /** Catalogue pieces plus the user's own uploads. */

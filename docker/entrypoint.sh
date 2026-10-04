@@ -9,6 +9,9 @@ if [ -z "$APP_KEY" ]; then
     exit 1
 fi
 
+# Spool shared with the omr container (PDF recognition); it runs as another user, so keep it open.
+mkdir -p storage/app/private/omr/in storage/app/private/omr/out
+chmod 777 storage/app/private/omr storage/app/private/omr/in storage/app/private/omr/out
 chown -R www-data:www-data storage bootstrap/cache
 
 # Wait for the database (the PDO check also proves the credentials work).

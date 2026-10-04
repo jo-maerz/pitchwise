@@ -15,6 +15,7 @@ class SessionReportService
 
         $counts = array_fill_keys(['in_tune', 'sharp', 'flat', 'wrong_note', 'missed'], 0);
         $byMeasure = [];
+        $byPitch = [];
         $notes = [];
 
         foreach ($session->results as $r) {
@@ -23,6 +24,15 @@ class SessionReportService
             $byMeasure[$measure] ??= ['measure' => $measure, 'notes' => 0, 'in_tune' => 0];
             $byMeasure[$measure]['notes']++;
             $byMeasure[$measure]['in_tune'] += $r->verdict === 'in_tune' ? 1 : 0;
+
+            $p = &$byPitch[$r->expected_midi];
+            $p ??= ['attempts' => 0, 'in_tune' => 0, 'cents' => []];
+            $p['attempts']++;
+            $p['in_tune'] += $r->verdict === 'in_tune' ? 1 : 0;
+            if (in_array($r->verdict, ['in_tune', 'sharp', 'flat'], true) && $r->cents_offset !== null) {
+                $p['cents'][] = $r->cents_offset;
+            }
+            unset($p);
 
             $notes[] = [
                 'index' => $r->note_index,
@@ -34,6 +44,14 @@ class SessionReportService
                 'verdict' => $r->verdict,
             ];
         }
+
+        ksort($byPitch);
+        $pitches = collect($byPitch)->map(fn ($p, $midi) => Pitch::chartRow(
+            (int) $midi,
+            $p['attempts'],
+            $p['in_tune'],
+            $p['cents'] ? round(array_sum($p['cents']) / count($p['cents']), 2) : null,
+        ))->values()->all();
 
         foreach ($byMeasure as &$m) {
             $m['rate'] = round(100 * $m['in_tune'] / max(1, $m['notes']), 1);
@@ -60,6 +78,7 @@ class SessionReportService
             'measures' => array_values($byMeasure),
             'weakest' => $weakest,
             'notes' => $notes,
+            'pitches' => $pitches,
         ];
     }
 }

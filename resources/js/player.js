@@ -9,6 +9,7 @@ import { summarize } from './practice/report.js';
 import { ScoreView } from './practice/score-view.js';
 import { SETTING_LIMITS, clamp, loadSettings, saveSettings } from './practice/settings.js';
 import { buildTimeline, eventAt, median, summarizeFrames } from './practice/timeline.js';
+import { WaitFollower } from './practice/wait-mode.js';
 
 /*
  * The practice player: score + live tuner + note-by-note verdicts.
@@ -50,8 +51,15 @@ class Player {
         this.showTarget(this.notes[0]?.midi_pitch ?? null);
         $('#btn-start').addEventListener('click', () => this.start());
         $('#btn-stop').addEventListener('click', () => this.stop());
+        $('#btn-skip').addEventListener('click', () => this.skip());
+        document.addEventListener('keydown', (ev) => {
+            if (ev.key === 'ArrowRight' && this.state === 'playing' && !ev.target.closest?.('input, select, textarea')) {
+                ev.preventDefault();
+                this.skip();
+            }
+        });
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden && this.state === 'playing') this.warn('The tab was hidden, so the microphone could not be read; some notes may show as missed.');
+            if (document.hidden && this.state === 'playing' && !this.waitFollower) this.warn('The tab was hidden, so the microphone could not be read; some notes may show as missed.');
         });
     }
 
@@ -76,11 +84,13 @@ class Player {
         f.countIn.checked = this.settings.countIn;
         f.metronome.checked = this.settings.metronome;
         f.layout.value = this.settings.layout;
+        f.playMode.value = this.settings.mode;
         for (const r of f.querySelectorAll('[name=toleranceMode]')) r.checked = r.value === this.settings.toleranceMode;
 
         f.addEventListener('change', (ev) => {
             this.readForm();
             if (ev.target.name === 'layout' && this.state === 'ready') this.renderScore();
+            if (ev.target.name === 'playMode' && this.state === 'ready') this.setState('ready');
         });
         f.addEventListener('submit', (ev) => ev.preventDefault());
         this.readForm();
@@ -99,6 +109,9 @@ class Player {
         s.countIn = f.countIn.checked;
         s.metronome = f.metronome.checked;
         s.layout = f.layout.value === 'continuous' ? 'continuous' : 'pages';
+        s.mode = f.playMode.value === 'wait' ? 'wait' : 'follow';
+        for (const el of f.querySelectorAll('[data-follow-only]')) el.hidden = s.mode === 'wait';
+        for (const el of f.querySelectorAll('[data-wait-only]')) el.hidden = s.mode !== 'wait';
         s.fromPage = Number(f.fromPage.value) || 1;
         s.toPage = Number(f.toPage.value) || null;
         if (s.toPage && s.toPage < s.fromPage) s.toPage = s.fromPage;
@@ -179,12 +192,14 @@ class Player {
             this.warn(`This run will not be saved: ${e.message}`);
         }
 
-        const countInBeats = s.countIn ? this.config.defaults.beatsPerMeasure : 0;
+        const waiting = s.mode === 'wait';
+        const countInBeats = !waiting && s.countIn ? this.config.defaults.beatsPerMeasure : 0;
         this.timeline = buildTimeline(selected, { bpm: s.bpm, countInBeats, latencyMs: s.latencyMs });
         this.beatMs = 60000 / s.bpm;
         this.t0 = this.mic.nowMs() + LEAD_MS;
         this.nextClickBeat = 0;
-        this.clickBeats = s.metronome ? Math.ceil(this.timeline.endMs / this.beatMs) : countInBeats;
+        this.clickBeats = !waiting && s.metronome ? Math.ceil(this.timeline.endMs / this.beatMs) : countInBeats;
+        this.waitFollower = waiting ? new WaitFollower(this.timeline.events, { referenceHz: s.referenceHz }) : null;
 
         this.buffers = this.timeline.events.map(() => []);
         this.listenPos = 0;
@@ -200,7 +215,49 @@ class Player {
         this.score.moveTo(selected[0].note_index);
         this.updateTally();
         this.setState('playing');
-        this.loop();
+        if (waiting) {
+            this.showWaiting(0);
+            this.waitLoop();
+        } else {
+            this.loop();
+        }
+    }
+
+    // ---------------------------------------------------------------- wait-for-me mode
+
+    waitLoop = () => {
+        if (this.state !== 'playing') return;
+        const frame = this.mic.read();
+        const accepted = this.waitFollower.feed(frame);
+        if (accepted) this.completeWaitNote(accepted);
+        // The note just played is still ringing: don't show it as a wrong note against the next one.
+        this.updateLive(this.waitFollower.lingering ? { ...frame, hz: 0, clarity: 0 } : frame, this.waitFollower.index);
+        if (this.waitFollower.done) {
+            this.finish();
+            return;
+        }
+        requestAnimationFrame(this.waitLoop);
+    };
+
+    /** Judge the note the player just held (or skipped), then move the cursor to the next one. */
+    completeWaitNote({ index, frames }) {
+        this.buffers[index] = frames;
+        this.listenPos = index + 1;
+        this.finalize(index);
+        if (!this.waitFollower.done) this.showWaiting(this.waitFollower.index);
+    }
+
+    showWaiting(i) {
+        const event = this.timeline.events[i];
+        this.score.moveTo(event.index);
+        this.updateProgress(i);
+        $('#status').textContent = `Play ${noteName(event.midi)}. The cursor waits for you.`;
+    }
+
+    skip() {
+        if (this.state !== 'playing' || !this.waitFollower || this.waitFollower.done) return;
+        this.completeWaitNote(this.waitFollower.skip());
+        if (this.waitFollower.done) this.finish();
     }
 
     loop = () => {
@@ -379,10 +436,14 @@ class Player {
         $('#btn-start').disabled = !['ready', 'done'].includes(state);
         $('#btn-start').textContent = state === 'done' ? 'Play again' : 'Start';
         $('#btn-stop').disabled = state !== 'playing';
+        $('#btn-skip').hidden = this.settings.mode !== 'wait';
+        $('#btn-skip').disabled = state !== 'playing';
         for (const el of this.form.elements) el.disabled = state === 'playing' || state === 'starting' || state === 'finishing';
         $('#status').textContent = {
             loading: 'Loading the score…',
-            ready: 'Ready. Press Start, wait for the count-in, then play along with the cursor.',
+            ready: this.settings.mode === 'wait'
+                ? 'Ready. Press Start, then play the first note. The cursor waits for you.'
+                : 'Ready. Press Start, wait for the count-in, then play along with the cursor.',
             starting: 'Starting the microphone…',
             playing: 'Listening…',
             finishing: 'Saving your run…',

@@ -6,10 +6,8 @@ namespace PracticeApi;
 
 use RuntimeException;
 
-/** An error the client caused or should know about; rendered as JSON with its status code. */
 final class ApiException extends RuntimeException
 {
-    /** @param array<string, mixed> $details */
     public function __construct(
         public readonly int $status,
         public readonly string $errorCode,

@@ -78,3 +78,16 @@
 .pi-strings li.is-active { background: #e7f5e7; }
 
 [hidden] { display: none !important; }
+
+/* Run report: offsets under the notes, clickable notes, detail ruler */
+.pi-offset-label { font-size: 10px; font-weight: 600; fill: var(--pi-v); stroke: none; pointer-events: none; }
+.pi-note-clickable { cursor: pointer; }
+.pi-score .is-selected .vf-notehead path,
+.pi-score g.is-selected .vf-notehead { filter: drop-shadow(0 0 3px var(--pi-v, #000)); }
+.pi-bar-outline { fill: rgba(220, 38, 38, .06); stroke: #dc2626; stroke-width: 2; pointer-events: none; }
+[data-bar].is-selected-bar { outline: 2px solid #dc2626; outline-offset: 1px; }
+.pi-table tr[data-index] { cursor: pointer; }
+.pi-table tr.is-selected td { background: #f3f2ef; }
+.pi-ruler { position: relative; height: .5rem; border-radius: 999px; background: linear-gradient(90deg, #dbe8f8, #e4e3df 40%, #e4e3df 60%, #fbdcdc); }
+.pi-ruler::before { content: ""; position: absolute; left: var(--lo, 20%); right: var(--hi, 20%); top: 0; bottom: 0; background: rgba(12, 163, 12, .35); }
+.pi-ruler-marker { position: absolute; top: -.2rem; width: .9rem; height: .9rem; margin-left: -.45rem; border-radius: 999px; background: var(--pi-v, var(--pi-text)); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--pi-text-secondary); }

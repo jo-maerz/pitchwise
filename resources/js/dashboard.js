@@ -1,25 +1,10 @@
-import {
-    BarController, BarElement, CategoryScale, Chart, Filler, LinearScale,
-    LineController, LineElement, PointElement, Tooltip,
-} from 'chart.js';
-
-Chart.register(BarController, BarElement, CategoryScale, Filler, LinearScale, LineController, LineElement, PointElement, Tooltip);
+import { Chart, chartTheme, css, renderPitchChart } from './pitch-chart.js';
 
 const dataEl = document.getElementById('dashboard-data');
 
-function css(name) {
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
-
 if (dataEl) {
     const data = JSON.parse(dataEl.textContent);
-    const ink = css('--pi-text-secondary') || '#52514e';
-    const grid = css('--pi-grid') || '#e4e3df';
-    Chart.defaults.color = ink;
-    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
-    Chart.defaults.borderColor = grid;
-
-    const tooltip = { displayColors: false, padding: 10, cornerRadius: 6 };
+    const { grid, tooltip } = chartTheme();
 
     // Score per run, one series: the title names it, so no legend.
     const historyEl = document.getElementById('chart-history');
@@ -65,51 +50,6 @@ if (dataEl) {
         });
     }
 
-    // Average offset per pitch: diverging around 0 (sharp = red, flat = blue), one y-axis in cents.
     const pitchEl = document.getElementById('chart-pitches');
-    if (pitchEl && data.pitches.length) {
-        const sharp = css('--pi-sharp') || '#e34948';
-        const flat = css('--pi-flat') || '#2a78d6';
-        const neutral = css('--pi-neutral') || '#a8a7a2';
-        const colour = (c) => (c === null || Math.abs(c) < 5 ? neutral : c > 0 ? sharp : flat);
-        new Chart(pitchEl, {
-            type: 'bar',
-            data: {
-                labels: data.pitches.map((p) => p.note),
-                datasets: [{
-                    data: data.pitches.map((p) => p.avgCents ?? 0),
-                    backgroundColor: data.pitches.map((p) => colour(p.avgCents)),
-                    borderRadius: 4,
-                    borderSkipped: false,
-                    maxBarThickness: 28,
-                }],
-            },
-            options: {
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        suggestedMin: -40,
-                        suggestedMax: 40,
-                        ticks: { callback: (v) => `${v > 0 ? '+' : ''}${v}` },
-                        title: { display: true, text: 'cents (↑ sharp, ↓ flat)' },
-                        grid: { color: (ctx) => (ctx.tick.value === 0 ? ink : grid) },
-                    },
-                    x: { grid: { display: false } },
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        ...tooltip,
-                        callbacks: {
-                            label: (item) => {
-                                const p = data.pitches[item.dataIndex];
-                                const c = p.avgCents === null ? 'no pitched attempts' : `${p.avgCents > 0 ? '+' : ''}${p.avgCents} cents on average`;
-                                return [c, `${p.inTunePct}% in tune over ${p.attempts} notes`];
-                            },
-                        },
-                    },
-                },
-            },
-        });
-    }
+    if (pitchEl && data.pitches.length) renderPitchChart(pitchEl, data.pitches);
 }

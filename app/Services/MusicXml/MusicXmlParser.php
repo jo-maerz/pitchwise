@@ -313,7 +313,8 @@ class MusicXmlParser
         return $notes;
     }
 
-    private function readXml(string $path): string
+    /** The score's XML text, unpacking a compressed .mxl if needed. */
+    public function readXml(string $path): string
     {
         $handle = @fopen($path, 'rb');
         if ($handle === false) {

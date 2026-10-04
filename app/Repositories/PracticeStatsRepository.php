@@ -2,9 +2,11 @@
 
 namespace App\Repositories;
 
+use App\Models\Piece;
 use App\Models\PracticeSession;
 use App\Models\User;
 use App\Models\UserPitchStat;
+use App\Support\Pitch;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -45,6 +47,33 @@ class PracticeStatsRepository
             ->where('attempts', '>', 0)
             ->orderBy('midi_pitch')
             ->get();
+    }
+
+    /**
+     * Per-pitch intonation on one piece over all the user's finished runs, as chart rows.
+     * Computed from note_results on demand (one piece's history is small; the index on
+     * practice_sessions (user_id, piece_id, finished_at) narrows the runs first).
+     */
+    public function pitchStatsForPiece(User $user, Piece $piece): Collection
+    {
+        return DB::table('note_results as r')
+            ->join('practice_sessions as s', 's.id', '=', 'r.session_id')
+            ->where('s.user_id', $user->id)
+            ->where('s.piece_id', $piece->id)
+            ->whereNotNull('s.finished_at')
+            ->groupBy('r.expected_midi')
+            ->orderBy('r.expected_midi')
+            ->selectRaw("r.expected_midi as midi, COUNT(*) as attempts,
+                SUM(CASE WHEN r.verdict = 'in_tune' THEN 1 ELSE 0 END) as in_tune,
+                AVG(CASE WHEN r.verdict IN ('in_tune', 'sharp', 'flat') THEN r.cents_offset END) as avg_cents")
+            ->get()
+            ->map(fn ($r) => Pitch::chartRow(
+                (int) $r->midi,
+                (int) $r->attempts,
+                (int) $r->in_tune,
+                $r->avg_cents === null ? null : round((float) $r->avg_cents, 2),
+            ))
+            ->values();
     }
 
     /**

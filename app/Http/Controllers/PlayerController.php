@@ -36,6 +36,24 @@ class PlayerController extends Controller
         ]);
     }
 
+    /** Original PDF page plus the live tuner. No notes are followed: the nearest note is taken as the target. */
+    public function pdf(Piece $piece): View
+    {
+        Gate::authorize('playPdf', $piece);
+
+        return view('player.pdf', [
+            'piece' => $piece,
+            'config' => [
+                'pdfUrl' => route('pieces.pdf', $piece),
+                'defaults' => [
+                    'toleranceMode' => config('practice.tolerance.mode'),
+                    'toleranceValue' => config('practice.tolerance.value'),
+                    'referenceHz' => config('practice.reference_hz'),
+                ],
+            ],
+        ]);
+    }
+
     public function tuner(): View
     {
         return view('player.tuner', [

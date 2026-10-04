@@ -2,12 +2,6 @@
 
 declare(strict_types=1);
 
-/*
- * Front controller of the plain-PHP API.
- *   Local:      php -S 127.0.0.1:8001 -t api/public
- *   Production: point a vhost (or an nginx location /api/v1) at this directory.
- */
-
 use PracticeApi\App;
 use PracticeApi\Database;
 use PracticeApi\Env;

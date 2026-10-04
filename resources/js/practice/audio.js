@@ -38,7 +38,11 @@ export async function openMicrophone({ noiseGateDb = -30 } = {}) {
                 hz = 0;
                 clarity = 0;
             }
-            return { t: ctx.currentTime * 1000, hz, clarity };
+            // Loudness of this window in dB (same scale as the noise gate); used to hear a note being played again.
+            let sum = 0;
+            for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+            const level = 10 * Math.log10(sum / buffer.length + 1e-12);
+            return { t: ctx.currentTime * 1000, hz, clarity, level };
         },
         setNoiseGate(db) {
             detector.minVolumeDecibels = db;

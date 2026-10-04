@@ -8,12 +8,25 @@
             <form method="POST" action="{{ route('pieces.update', $piece) }}" enctype="multipart/form-data" class="bg-white shadow-sm sm:rounded-lg p-6 space-y-5">
                 @csrf @method('PUT')
 
+                <p class="text-sm text-gray-600">
+                    Files on this piece:
+                    <span class="pi-chip">MusicXML: {{ $piece->musicxml_path ? ($piece->needsReview() ? 'recognised from the PDF, not yet confirmed' : 'yes') : 'none' }}</span>
+                    <span class="pi-chip">PDF: {{ $piece->hasPdf() ? 'yes' : 'none' }}</span>
+                </p>
+
                 <div>
                     <x-input-label for="score" :value="__('Replace the score (optional)')" />
-                    <input id="score" name="score" type="file" accept=".musicxml,.xml,.mxl"
+                    <input id="score" name="score" type="file" accept=".musicxml,.xml,.mxl,.pdf"
                            class="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2" />
-                    <p class="mt-1 text-sm text-gray-500">Leave empty to keep the current score. A new file replaces it and is read again.</p>
+                    <p class="mt-1 text-sm text-gray-500">Leave empty to keep the current files. A MusicXML file replaces the notes and is read again (the PDF stays). Use this to add corrected MusicXML to a piece that only has a PDF.</p>
                     <x-input-error :messages="$errors->get('score')" class="mt-2" />
+                </div>
+
+                <div>
+                    <x-input-label for="pdf" :value="__('Add or replace the original PDF (optional)')" />
+                    <input id="pdf" name="pdf" type="file" accept=".pdf"
+                           class="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2" />
+                    <x-input-error :messages="$errors->get('pdf')" class="mt-2" />
                 </div>
 
                 <div>

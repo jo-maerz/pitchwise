@@ -57,6 +57,7 @@ export class ScoreView {
         cursor.reset();
         const map = [];
         let step = 0;
+        let lastTime = -1;
         while (!cursor.Iterator.EndReached) {
             const entries = cursor.VoicesUnderCursor(instrument)
                 .filter((ve) => ve.ParentVoice?.VoiceId === melodyVoice && !ve.IsGrace);
@@ -66,8 +67,13 @@ export class ScoreView {
                 const tie = note.NoteTie;
                 if (tie && tie.StartNote && tie.StartNote !== note) continue; // continuation of a tied note
                 const gnote = this.osmd.EngravingRules.GNote(note);
+                // Written time went backwards: a repeat (or D.C./D.S.) sent the cursor back here.
+                const time = cursor.Iterator.CurrentSourceTimestamp?.RealValue ?? 0;
+                const jumpBack = time < lastTime;
+                lastTime = time;
                 map.push({
                     step,
+                    jumpBack,
                     midi: note.halfTone + 12,
                     gnote,
                     page: gnote?.ParentMusicPage?.PageNumber ?? 1,
@@ -100,6 +106,7 @@ export class ScoreView {
     moveTo(index) {
         const target = this.map[index]?.step;
         if (target == null) return;
+        if (this.map[index].jumpBack) this.forgetColoursFrom(index);
         const cursor = this.osmd.cursor;
         if (target < this.step) {
             cursor.reset();
@@ -109,6 +116,46 @@ export class ScoreView {
             cursor.next();
             this.step++;
         }
+    }
+
+    /**
+     * The cursor jumped back to `index`: every written note from here on is about to be played
+     * again, so it must not keep the colour of the previous pass. Notes the run will not reach
+     * again (e.g. a first ending) keep theirs.
+     */
+    forgetColoursFrom(index) {
+        const again = new Set(this.map.slice(index).map((m) => m.gnote));
+        for (let i = 0; i < index; i++) {
+            if (this.colours.has(i) && again.has(this.map[i]?.gnote)) this.paint(i, null);
+        }
+    }
+
+    /** The SVG group of a counted note, or null (not drawn / not found). */
+    noteElement(index) {
+        return this.map[index]?.gnote?.getSVGGElement?.() ?? null;
+    }
+
+    /** Pixel box (in the score SVG) of the whole bar that holds counted note `index`, all staves. */
+    barRect(index) {
+        const measure = this.map[index]?.gnote?.parentVoiceEntry?.parentStaffEntry?.parentMeasure;
+        const row = this.osmd.GraphicSheet?.MeasureList?.[measure?.parentSourceMeasure?.measureListIndex];
+        if (!row) return null;
+        const unit = 10 * this.osmd.zoom; // OSMD engraving units are 10 px at zoom 1
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const gm of row) {
+            const box = gm?.PositionAndShape;
+            if (!box) continue;
+            x0 = Math.min(x0, box.AbsolutePosition.x);
+            y0 = Math.min(y0, box.AbsolutePosition.y);
+            x1 = Math.max(x1, box.AbsolutePosition.x + box.Size.width);
+            y1 = Math.max(y1, box.AbsolutePosition.y + box.Size.height);
+        }
+        if (!Number.isFinite(x0)) return null;
+        return { x: x0 * unit, y: y0 * unit, width: (x1 - x0) * unit, height: (y1 - y0) * unit };
+    }
+
+    hideCursor() {
+        this.osmd.cursor.hide();
     }
 
     resetCursor() {

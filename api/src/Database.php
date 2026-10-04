@@ -8,7 +8,6 @@ use PDO;
 
 final class Database
 {
-    /** Same connection settings as Laravel's config/database.php, read from the shared .env. */
     public static function connect(Env $env, string $basePath): PDO
     {
         $driver = $env->get('DB_CONNECTION', 'sqlite');

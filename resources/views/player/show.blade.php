@@ -31,6 +31,7 @@
                         </ul>
                         <div class="mt-4 flex gap-2">
                             <button id="btn-start" type="button" class="flex-1 inline-flex justify-center items-center px-4 py-2.5 bg-gray-800 rounded-md font-semibold text-sm text-white hover:bg-gray-700 disabled:opacity-40" disabled>Start</button>
+                            <button id="btn-skip" type="button" class="inline-flex justify-center items-center px-3 py-2.5 border border-gray-300 rounded-md font-semibold text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40" title="Skip this note (counts as missed). Shortcut: right arrow" hidden disabled>Skip</button>
                             <button id="btn-stop" type="button" class="inline-flex justify-center items-center px-4 py-2.5 border border-gray-300 rounded-md font-semibold text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40" disabled>Stop</button>
                         </div>
                         <p id="status" class="mt-2 text-sm text-gray-600" aria-live="polite">Loading the score…</p>
@@ -39,8 +40,16 @@
 
                     <form id="settings" class="bg-white shadow-sm sm:rounded-lg p-4 space-y-4">
                         <h3 class="font-semibold text-gray-800">Settings</h3>
+                        <label class="block">
+                            <span class="text-sm font-medium text-gray-700">Mode</span>
+                            <select name="playMode" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-sm">
+                                <option value="follow">Follow the tempo</option>
+                                <option value="wait">Wait for me</option>
+                            </select>
+                            <span class="block text-xs text-gray-500" data-wait-only>The cursor stays on a note until you have played it (hold it for a moment). No tempo, no count-in.</span>
+                        </label>
                         <div class="grid grid-cols-2 gap-3">
-                            <label class="block">
+                            <label class="block" data-follow-only>
                                 <span class="text-sm font-medium text-gray-700">Tempo ♩ =</span>
                                 <input name="bpm" type="number" min="20" max="300" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-sm">
                             </label>
@@ -64,7 +73,7 @@
                         <details class="text-sm">
                             <summary class="cursor-pointer font-medium text-gray-700">Timing and microphone</summary>
                             <div class="mt-3 space-y-3">
-                                <label class="block">
+                                <label class="block" data-follow-only>
                                     <span class="text-gray-700">Input delay (ms)</span>
                                     <input name="latencyMs" type="number" min="-500" max="1000" step="10" class="mt-1 w-24 border-gray-300 rounded-md shadow-sm text-sm">
                                     <span class="block text-xs text-gray-500">If notes are judged too early (the previous note bleeds in), raise this. Typical: 50–150 ms.</span>
@@ -77,8 +86,8 @@
                                         <option value="-20">−20 dB (noisy room)</option>
                                     </select>
                                 </label>
-                                <label class="flex items-center gap-2"><input type="checkbox" name="countIn"> One-bar count-in</label>
-                                <label class="flex items-center gap-2"><input type="checkbox" name="metronome"> Metronome while playing</label>
+                                <label class="flex items-center gap-2" data-follow-only><input type="checkbox" name="countIn"> One-bar count-in</label>
+                                <label class="flex items-center gap-2" data-follow-only><input type="checkbox" name="metronome"> Metronome while playing</label>
                             </div>
                         </details>
                     </form>

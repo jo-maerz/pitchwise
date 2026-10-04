@@ -17,4 +17,13 @@ return [
 
     // Upload limit for MusicXML files, in kilobytes.
     'max_upload_kb' => 4096,
+
+    // PDF scores are turned into MusicXML by Audiveris (optical music recognition). Audiveris runs in
+    // its own container (docker/omr) and talks to the queue worker through files in `spool`:
+    //   in/<id>.pdf  ->  out/<id>.mxl  (or out/<id>.failed with the reason)
+    'max_pdf_kb' => 20480,
+    'omr' => [
+        'spool' => env('PRACTICE_OMR_SPOOL', storage_path('app/private/omr')),
+        'wait_minutes' => (int) env('PRACTICE_OMR_WAIT_MINUTES', 20),
+    ],
 ];

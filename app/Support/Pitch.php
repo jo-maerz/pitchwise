@@ -17,6 +17,18 @@ final class Pitch
         return $referenceHz * 2 ** (($midi - 69) / 12);
     }
 
+    /** One bar of the "intonation by note" chart. */
+    public static function chartRow(int $midi, int $attempts, int $inTune, ?float $avgCents): array
+    {
+        return [
+            'note' => self::name($midi),
+            'midi' => $midi,
+            'avgCents' => $avgCents,
+            'attempts' => $attempts,
+            'inTunePct' => round(100 * $inTune / max(1, $attempts), 1),
+        ];
+    }
+
     /** "+18 cents", "−7 cents", "0 cents". */
     public static function cents(?float $cents): string
     {

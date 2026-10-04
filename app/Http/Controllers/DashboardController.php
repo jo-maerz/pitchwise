@@ -28,13 +28,7 @@ class DashboardController extends Controller
                     'score' => $s->score_pct,
                     'piece' => $s->piece?->title,
                 ])->values(),
-                'pitches' => $pitches->map(fn ($p) => [
-                    'note' => Pitch::name($p->midi_pitch),
-                    'midi' => $p->midi_pitch,
-                    'avgCents' => $p->avg_cents,
-                    'attempts' => $p->attempts,
-                    'inTunePct' => round(100 * $p->in_tune / max(1, $p->attempts), 1),
-                ])->values(),
+                'pitches' => $pitches->map(fn ($p) => Pitch::chartRow($p->midi_pitch, $p->attempts, $p->in_tune, $p->avg_cents))->values(),
             ],
         ]);
     }

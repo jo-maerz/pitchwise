@@ -19,7 +19,6 @@ final class SessionController
 
     public function __construct(private readonly PDO $pdo) {}
 
-    /** POST /api/v1/sessions — start a run. */
     public function store(int $userId, Request $request): Response
     {
         $in = $request->json();
@@ -59,13 +58,6 @@ final class SessionController
         ], 201);
     }
 
-    /**
-     * POST /api/v1/sessions/{id}/results — store a batch of note results.
-     *
-     * The client sends what it heard (frequency + clarity) per note. The server checks
-     * the expected pitch against piece_notes, judges each note itself with the run's
-     * pitch rule, and inserts the batch in one transaction. `finished: true` closes the run.
-     */
     public function storeResults(int $userId, int $sessionId, Request $request): Response
     {
         $in = $request->json();
@@ -143,11 +135,6 @@ final class SessionController
         return $session;
     }
 
-    /**
-     * Never trust client data: every expected_midi must match piece_notes.
-     *
-     * @return list<array<string, mixed>>
-     */
     private function validateBatch(array $results, array $session): array
     {
         $stmt = $this->pdo->prepare('SELECT note_index, midi_pitch FROM piece_notes WHERE piece_id = ?');
@@ -221,7 +208,6 @@ final class SessionController
         return $rows;
     }
 
-    /** @param list<int> $indexes */
     private function assertNotStored(int $sessionId, array $indexes): void
     {
         if ($indexes === []) {

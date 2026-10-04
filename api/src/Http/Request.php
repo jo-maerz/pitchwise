@@ -10,7 +10,6 @@ final class Request
 {
     public const MAX_BODY_BYTES = 1_048_576;
 
-    /** @param array<string, string> $headers lower-cased names */
     public function __construct(
         public readonly string $method,
         public readonly string $path,
@@ -29,7 +28,6 @@ final class Request
         if (isset($_SERVER['CONTENT_TYPE'])) {
             $headers['content-type'] = (string) $_SERVER['CONTENT_TYPE'];
         }
-        // Some servers (php -S, FPM without config) hide Authorization from HTTP_*.
         if (! isset($headers['authorization']) && function_exists('getallheaders')) {
             foreach (getallheaders() as $name => $value) {
                 if (strtolower($name) === 'authorization') {
@@ -49,7 +47,6 @@ final class Request
         return $this->headers[strtolower($name)] ?? null;
     }
 
-    /** @return array<string, mixed> */
     public function json(): array
     {
         if (strlen($this->body) > self::MAX_BODY_BYTES) {

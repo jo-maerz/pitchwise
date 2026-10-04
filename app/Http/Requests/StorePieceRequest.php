@@ -19,31 +19,58 @@ class StorePieceRequest extends FormRequest
             'composer' => ['nullable', 'string', 'max:200'],
             'instrument' => ['required', 'string', 'in:violin,viola,cello,double bass,flute,voice,other'],
             'default_bpm' => ['required', 'integer', 'between:30,240'],
-            'score' => ['required', 'file', 'max:'.config('practice.max_upload_kb')],
+            'score' => ['required', 'file', 'max:'.config('practice.max_pdf_kb')],
+            // The original PDF next to a MusicXML score, to read along and to practise with the tuner alone.
+            'pdf' => ['nullable', 'file', 'max:'.config('practice.max_pdf_kb')],
         ];
     }
 
     /** MIME detection for MusicXML is unreliable, so check the extension and the first bytes ourselves. */
     public function after(): array
     {
-        return [function (Validator $validator) {
-            $file = $this->file('score');
-            if (! $file || ! $file->isValid()) {
-                return;
-            }
-            $ext = strtolower($file->getClientOriginalExtension());
-            if (! in_array($ext, ['musicxml', 'xml', 'mxl'], true)) {
-                $validator->errors()->add('score', 'Upload a MusicXML file (.musicxml, .xml or .mxl).');
+        return [fn (Validator $validator) => $this->checkScore($validator), fn (Validator $validator) => $this->checkPdf($validator)];
+    }
 
-                return;
-            }
-            $head = (string) file_get_contents($file->getRealPath(), false, null, 0, 2048);
-            $looksRight = $ext === 'mxl'
-                ? str_starts_with($head, 'PK')
-                : (str_contains($head, '<score-partwise') || str_contains($head, '<!DOCTYPE score-partwise'));
-            if (! $looksRight) {
-                $validator->errors()->add('score', 'This file does not look like a partwise MusicXML score.');
-            }
-        }];
+    private function checkPdf(Validator $validator): void
+    {
+        $pdf = $this->file('pdf');
+        if (! $pdf || ! $pdf->isValid()) {
+            return;
+        }
+        $head = (string) file_get_contents($pdf->getRealPath(), false, null, 0, 16);
+        if (strtolower($pdf->getClientOriginalExtension()) !== 'pdf' || ! str_starts_with($head, '%PDF-')) {
+            $validator->errors()->add('pdf', 'This file is not a valid PDF.');
+        } elseif (strtolower((string) $this->file('score')?->getClientOriginalExtension()) === 'pdf') {
+            $validator->errors()->add('pdf', 'You already chose a PDF as the score. Attach a second PDF only next to a MusicXML file.');
+        }
+    }
+
+    private function checkScore(Validator $validator): void
+    {
+        $file = $this->file('score');
+        if (! $file || ! $file->isValid()) {
+            return;
+        }
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (! in_array($ext, ['musicxml', 'xml', 'mxl', 'pdf'], true)) {
+            $validator->errors()->add('score', 'Upload a MusicXML file (.musicxml, .xml, .mxl) or a PDF.');
+
+            return;
+        }
+        // MusicXML stays small; only PDFs may use the larger limit.
+        if ($ext !== 'pdf' && $file->getSize() > config('practice.max_upload_kb') * 1024) {
+            $validator->errors()->add('score', 'MusicXML files can be up to '.(config('practice.max_upload_kb') / 1024).' MB.');
+
+            return;
+        }
+        $head = (string) file_get_contents($file->getRealPath(), false, null, 0, 2048);
+        $looksRight = match ($ext) {
+            'pdf' => str_starts_with($head, '%PDF-'),
+            'mxl' => str_starts_with($head, 'PK'),
+            default => str_contains($head, '<score-partwise') || str_contains($head, '<!DOCTYPE score-partwise'),
+        };
+        if (! $looksRight) {
+            $validator->errors()->add('score', $ext === 'pdf' ? 'This file is not a valid PDF.' : 'This file does not look like a partwise MusicXML score.');
+        }
     }
 }

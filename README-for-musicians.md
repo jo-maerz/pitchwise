@@ -37,6 +37,10 @@ Everything happens in your browser. Your sound is never recorded or sent anywher
 
 Press **Stop** at any time; the notes you played so far are still counted.
 
+### Wait for me
+
+Not ready to keep a tempo? Under **Mode** choose **Wait for me**. There is no tempo and no count-in: the cursor stays on a note until you play it, then moves on. Hold each note for a moment (about a sixth of a second) so it is heard clearly. A note more than a quarter tone away does not count, so just try again. A note that is close but off still moves on and is marked too high or too low. If you play the same note twice in a row, play it again with a new bow stroke or a short pause: the program waits for the sound to dip and come back. **Skip** (or the right-arrow key) moves past a note you cannot play; it counts as missed.
+
 ## How strict is "in tune"?
 
 Pitch differences are measured in **cents**: 100 cents is one semitone. By default a note counts as in tune if it is within **30 cents** (about a third of a semitone) of the written note. Between 30 and 50 cents it is *too high* or *too low*. More than 50 cents away, you are closer to the next note than to the right one, so it counts as a *wrong note*.
@@ -61,6 +65,12 @@ You can also choose **Hz** instead of cents. Be careful: a fixed number of Hz is
 ## Your own music
 
 **Pieces → Upload MusicXML** accepts `.musicxml`, `.xml` or `.mxl` files. Most notation programs export these: in MuseScore, *File → Export → MusicXML*. Use music that is out of copyright or that you wrote or typed in yourself. Your uploads are private to you.
+
+**You can attach both the MusicXML and the original PDF** when you upload (or add one later with *Edit piece*). The MusicXML gives you the full practice, the PDF lets you practise from the page you know.
+
+**With the PDF alone** there is a simpler mode: your PDF on screen next to the live tuner. The app cannot read the notes, so it does not know which note you are meant to play. It takes the *nearest* note to what you play and shows how many cents you are off, and lists each note you played with its offset. If you play a wrong note, it is judged against a different note than the page asks for, so the results may be restricted and inaccurate. These runs are not saved to your reports.
+
+**PDF sheet music** can also be read into notes, with one extra step. The app reads the notes from the picture, which takes a few minutes. It then shows you what it understood, and you compare it with your PDF and press *It matches: confirm* before you can practise. Clean, printed, single-line parts work best; scans, photos and handwriting often come out wrong. If you see mistakes, correct the piece in a notation program and upload it as MusicXML instead.
 
 Only the **top melody line of the first instrument** is checked, one note at a time. Chords and double stops count their first note only; grace notes are skipped; repeats (도돌이표) and numbered endings are played out, so the notes are checked each time round; D.C., D.S., Fine and coda jumps are followed too. Simple pieces and studies work best.
 

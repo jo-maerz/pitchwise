@@ -81,6 +81,37 @@ class PlayerAndReportTest extends TestCase
     }
 
     #[Test]
+    public function the_report_and_the_piece_page_carry_per_piece_intonation_by_note(): void
+    {
+        Storage::fake('local');
+        $this->seed(CatalogueSeeder::class);
+        $user = User::factory()->create();
+        $piece = Piece::where('title', 'Open Strings and A Major Arpeggio')->sole();
+        $note = $piece->notes()->first();
+        $make = function (string $verdict, float $cents, bool $finished = true) use ($user, $piece, $note) {
+            $s = PracticeSession::factory()->for($user)->for($piece)->create(['finished_at' => $finished ? now() : null, 'score_pct' => 50]);
+            NoteResult::create(['session_id' => $s->id, 'note_index' => $note->note_index, 'expected_midi' => $note->midi_pitch,
+                'detected_midi' => $note->midi_pitch, 'detected_hz' => 200, 'cents_offset' => $cents, 'verdict' => $verdict, 'clarity' => 0.95]);
+
+            return $s;
+        };
+        $first = $make('sharp', 40);
+        $make('in_tune', 10);
+        $make('flat', -50, finished: false); // unfinished runs do not count
+
+        $this->actingAs($user)->get(route('pieces.show', $piece))->assertOk()
+            ->assertSee('id="chart-piece-pitches"', false)
+            ->assertSee('"avgCents":25', false)   // (40 + 10) / 2 over the two finished runs
+            ->assertSee('"attempts":2', false);
+
+        $this->actingAs($user)->get(route('sessions.show', $first))->assertOk()
+            ->assertSee('id="chart-run-pitches"', false)
+            ->assertSee('id="report-data"', false)
+            ->assertSee('"avgCents":40', false)    // this run alone
+            ->assertSee('"piecePitches"', false);
+    }
+
+    #[Test]
     public function aggregation_rolls_finished_runs_into_pitch_stats_once(): void
     {
         Storage::fake('local');

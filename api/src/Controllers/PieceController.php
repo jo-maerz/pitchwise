@@ -12,7 +12,6 @@ final class PieceController
 {
     public function __construct(private readonly PDO $pdo) {}
 
-    /** GET /api/v1/pieces/{id} — the expected notes the player times and scores against. */
     public function show(int $userId, int $pieceId): Response
     {
         $piece = self::findVisible($this->pdo, $userId, $pieceId);
@@ -41,7 +40,6 @@ final class PieceController
         ])->withHeaders(['Cache-Control' => 'private, max-age=60']);
     }
 
-    /** @return array<string, mixed> the piece row, if this user may play it */
     public static function findVisible(PDO $pdo, int $userId, int $pieceId): array
     {
         $stmt = $pdo->prepare(
