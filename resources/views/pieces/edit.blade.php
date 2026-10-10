@@ -8,6 +8,8 @@
             <form method="POST" action="{{ route('pieces.update', $piece) }}" enctype="multipart/form-data" class="bg-white shadow-sm sm:rounded-lg p-6 space-y-5">
                 @csrf @method('PUT')
 
+                @include('pieces._location')
+
                 <p class="text-sm text-gray-600">
                     Files on this piece:
                     <span class="pi-chip">MusicXML: {{ $piece->musicxml_path ? ($piece->needsReview() ? 'recognised from the PDF, not yet confirmed' : 'yes') : 'none' }}</span>
@@ -45,9 +47,7 @@
                     <div>
                         <x-input-label for="instrument" :value="__('Instrument')" />
                         <select id="instrument" name="instrument" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                            @foreach (['violin', 'viola', 'cello', 'double bass', 'flute', 'voice', 'other'] as $instrument)
-                                <option value="{{ $instrument }}" @selected(old('instrument', $piece->instrument) === $instrument)>{{ ucfirst($instrument) }}</option>
-                            @endforeach
+                            @include('pieces._instrument-options', ['selected' => old('instrument', $piece->instrument)])
                         </select>
                         <x-input-error :messages="$errors->get('instrument')" class="mt-2" />
                     </div>

@@ -6,19 +6,32 @@ use App\Models\Piece;
 use App\Models\PieceNote;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class PieceRepository
 {
-    public function paginateVisibleTo(User $user, int $perPage = 20): LengthAwarePaginator
+    /** The pieces of one library folder (NULL folder: the library's top level), with the viewer's finished runs counted. */
+    public function paginateIn(User $viewer, ?int $organizationId, ?int $folderId, ?string $instrument = null, int $perPage = 50): LengthAwarePaginator
+    {
+        return $this->in($viewer, $organizationId, $folderId, $instrument)->paginate($perPage)->withQueryString();
+    }
+
+    /** @return Collection<int, Piece> */
+    public function allIn(User $viewer, ?int $organizationId, ?int $folderId, ?string $instrument = null): Collection
+    {
+        return $this->in($viewer, $organizationId, $folderId, $instrument)->get();
+    }
+
+    private function in(User $viewer, ?int $organizationId, ?int $folderId, ?string $instrument): Builder
     {
         return Piece::query()
-            ->visibleTo($user)
-            ->withCount(['sessions as my_runs' => fn ($q) => $q->where('user_id', $user->id)->whereNotNull('finished_at')])
-            ->orderByRaw('owner_id IS NULL') // own uploads first, then the catalogue
-            ->orderBy('title')
-            ->paginate($perPage);
+            ->inLibrary($organizationId)
+            ->when($folderId, fn ($q) => $q->where('folder_id', $folderId), fn ($q) => $q->whereNull('folder_id'))
+            ->when($instrument, fn ($q) => $q->where('instrument', $instrument))
+            ->withCount(['sessions as my_runs' => fn ($q) => $q->where('user_id', $viewer->id)->whereNotNull('finished_at')])
+            ->orderBy('title');
     }
 
     public function create(array $attributes): Piece

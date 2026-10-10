@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
+use App\Models\Concerns\InLibrary;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,10 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Piece extends Model
 {
-    use HasFactory;
+    use HasFactory, InLibrary;
 
     protected $fillable = [
-        'owner_id', 'title', 'composer', 'instrument', 'musicxml_path',
+        'owner_id', 'organization_id', 'folder_id', 'title', 'composer', 'instrument', 'musicxml_path',
         'default_bpm', 'beats_per_measure', 'note_count', 'parse_status',
         'source_pdf_path', 'review_notes',
     ];
@@ -32,6 +32,11 @@ class Piece extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    public function folder(): BelongsTo
+    {
+        return $this->belongsTo(Folder::class);
+    }
+
     public function notes(): HasMany
     {
         return $this->hasMany(PieceNote::class)->orderBy('note_index');
@@ -40,11 +45,6 @@ class Piece extends Model
     public function sessions(): HasMany
     {
         return $this->hasMany(PracticeSession::class);
-    }
-
-    public function isCatalogue(): bool
-    {
-        return $this->owner_id === null;
     }
 
     public function isReady(): bool
@@ -72,10 +72,5 @@ class Piece extends Model
     public function isProcessing(): bool
     {
         return in_array($this->parse_status, ['pending', 'converting'], true);
-    }
-
-    public function scopeVisibleTo(Builder $query, User $user): Builder
-    {
-        return $query->where(fn (Builder $q) => $q->whereNull('owner_id')->orWhere('owner_id', $user->id));
     }
 }

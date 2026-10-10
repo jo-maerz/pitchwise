@@ -10,7 +10,13 @@
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ $piece->title }}</h2>
-                <p class="text-sm text-gray-500">{{ $piece->composer ?? 'Unknown composer' }} · {{ ucfirst($piece->instrument) }}</p>
+                <p class="text-sm text-gray-500">{{ $piece->composer ?? 'Unknown composer' }} · {{ App\Support\Instruments::label($piece->instrument) }}</p>
+                <p class="text-sm text-gray-500">
+                    <a href="{{ route('pieces.index') }}" class="hover:underline">{{ $piece->organization?->name ?? App\Services\LibraryService::SHARED_NAME }}</a>
+                    @foreach ($piece->folder?->ancestry() ?? [] as $folder)
+                        / <a href="{{ route('folders.show', $folder) }}" class="hover:underline">{{ $folder->name }}</a>
+                    @endforeach
+                </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 @can('play', $piece)
