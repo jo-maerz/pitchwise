@@ -11,11 +11,14 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Fake but plausible practice history for the demo user, so the dashboard has something to show.
+ * Fake but plausible practice history for the demo user, so the dashboard and the piece pages have something to show:
+ * about five runs a week for twelve weeks over every violin piece they can see, scales most often.
  * The simulated player plays C♯ and F♯ sharp (a classic first-finger-high habit) and improves over time.
  */
 class DemoHistorySeeder extends Seeder
 {
+    private const RUNS = 60;
+
     public function run(PitchStatsAggregator $aggregator): void
     {
         $user = User::where('email', 'demo@example.com')->firstOrFail();
@@ -24,22 +27,26 @@ class DemoHistorySeeder extends Seeder
         }
         mt_srand(7);
 
-        $pieces = Piece::whereNull('owner_id')->with('notes')->get();
-        $runs = 14;
-        for ($run = 0; $run < $runs; $run++) {
-            $piece = $pieces[$run % $pieces->count()];
-            $skill = $run / $runs; // 0 → 1
-            $finishedAt = now()->subDays(($runs - $run) * 2)->setTime(19, 30)->addMinutes(mt_rand(0, 90));
+        $pieces = Piece::visibleTo($user)->where('instrument', 'violin')->where('parse_status', 'ready')
+            ->with(['notes', 'folder'])->orderBy('id')->get();
+        // Scales and warm-ups come up twice as often as pieces, as in a real practice routine.
+        $rotation = $pieces->flatMap(fn (Piece $p) => in_array($p->folder?->name, ['Violin', 'Warm-ups'], true) ? [$p, $p] : [$p])->values();
+
+        for ($run = 0; $run < self::RUNS; $run++) {
+            $piece = $rotation[mt_rand(0, $rotation->count() - 1)];
+            $skill = $run / self::RUNS; // 0 → 1
+            $finishedAt = now()->subDays((int) round((self::RUNS - $run) * 84 / self::RUNS))->setTime(mt_rand(16, 20), mt_rand(0, 59));
+            $bpm = mt_rand(1, 3) === 1 ? (int) round($piece->default_bpm * 0.8) : $piece->default_bpm;
 
             $session = PracticeSession::create([
                 'user_id' => $user->id,
                 'piece_id' => $piece->id,
-                'bpm' => $piece->default_bpm,
+                'bpm' => $bpm,
                 'tolerance_mode' => 'cents',
                 'tolerance_value' => 30,
                 'reference_hz' => 440,
                 'latency_ms' => 80,
-                'started_at' => $finishedAt->copy()->subMinutes(2),
+                'started_at' => $finishedAt->copy()->subMinutes(max(1, (int) round(count($piece->notes) / $bpm * 1.2))),
                 'finished_at' => $finishedAt,
             ]);
 

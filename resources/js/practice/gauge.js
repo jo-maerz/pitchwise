@@ -51,8 +51,10 @@ export class Gauge {
         this.lastBand = '';
     }
 
-    setTarget(midi, band, hz) {
-        this.targetEl.textContent = midi == null ? '–' : `${noteName(midi)} · ${hz.toFixed(1)} Hz`;
+    /** `transpose`: semitones from written to sounding pitch; non-zero adds the written note for B♭, E♭ and F instruments. */
+    setTarget(midi, band, hz, transpose = 0) {
+        const written = transpose ? ` (written ${noteName(midi - transpose)})` : '';
+        this.targetEl.textContent = midi == null ? '–' : `${noteName(midi)}${written} · ${hz.toFixed(1)} Hz`;
         const key = band ? `${band.low}|${band.high}` : '';
         if (key !== this.lastBand) {
             this.lastBand = key;
