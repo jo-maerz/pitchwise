@@ -83,9 +83,9 @@ class PracticeApiTest extends TestCase
     }
 
     #[Test]
-    public function a_user_cannot_see_or_play_someone_elses_upload(): void
+    public function a_user_cannot_see_or_play_another_organizations_piece(): void
     {
-        $private = Piece::factory()->for(User::factory(), 'owner')->create(['parse_status' => 'ready']);
+        $private = Piece::factory()->inOrganization()->create(['parse_status' => 'ready']);
 
         $this->api('GET', '/pieces/'.$private->id)->assertForbidden();
         $this->api('POST', '/sessions', ['piece_id' => $private->id, 'bpm' => 60])->assertForbidden();
