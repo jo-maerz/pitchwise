@@ -43,13 +43,18 @@ class AnnotationTest extends TestCase
     }
 
     #[Test]
-    public function shared_library_pieces_cannot_be_annotated_even_by_admins(): void
+    public function shared_library_pieces_take_personal_annotations_only(): void
     {
         $piece = Piece::factory()->create();
         foreach ([User::factory()->create(), User::factory()->admin()->create(), User::factory()->orgAdmin()->create()] as $user) {
-            $this->actingAs($user)->get(route('annotations.show', $piece))->assertForbidden();
-            $this->save($user, $piece, 'mine')->assertForbidden();
+            $this->actingAs($user)->get(route('annotations.show', $piece))
+                ->assertOk()
+                ->assertDontSee('Draw on')
+                ->assertDontSee('annotate-show-shared');
+            $this->save($user, $piece, 'mine')->assertOk();
+            $this->save($user, $piece, 'shared')->assertForbidden();
         }
+        $this->assertSame(0, PieceAnnotation::shared()->count());
     }
 
     #[Test]
@@ -72,6 +77,43 @@ class AnnotationTest extends TestCase
             ->assertOk()
             ->assertSee('Lighter bow here')
             ->assertSee($stringsLead->name);
+    }
+
+    #[Test]
+    public function practice_shows_the_shared_layer_under_the_users_own_on_the_score_they_were_drawn_on(): void
+    {
+        $school = Organization::factory()->create();
+        $piece = Piece::factory()->inOrganization($school)->create(['parse_status' => 'ready']);
+        $student = User::factory()->create(['organization_id' => $school->id]);
+        $classmate = User::factory()->create(['organization_id' => $school->id]);
+        $own = [[['type' => 'Text', 'text' => 'Mine']]];
+        $theirs = [[['type' => 'Text', 'text' => 'Theirs']]];
+        $this->save(User::factory()->orgAdmin($school)->create(), $piece, 'shared')->assertOk();
+        $this->save($student, $piece, 'mine', $own)->assertOk();
+        $this->save($classmate, $piece, 'mine', $theirs)->assertOk();
+
+        $annotations = $this->actingAs($student)->get(route('player.show', $piece))->assertOk()->viewData('config')['annotations'];
+        $this->assertSame([self::PAGES, $own], $annotations['layers']);
+        $this->assertFalse($annotations['outdated']);
+
+        $newcomer = User::factory()->create(['organization_id' => $school->id]);
+        $this->assertSame([self::PAGES], $this->actingAs($newcomer)->get(route('player.show', $piece))->viewData('config')['annotations']['layers']);
+
+        $piece->update(['source_pdf_path' => 'pieces/score.pdf']);
+        $this->assertNull($this->actingAs($student)->get(route('player.show', $piece))->viewData('config')['annotations']);
+        $this->assertTrue($this->actingAs($student)->get(route('player.pdf', $piece))->assertOk()->assertSee('earlier upload')->viewData('config')['annotations']['outdated']);
+    }
+
+    #[Test]
+    public function private_users_see_their_own_marks_while_practising_shared_library_pieces(): void
+    {
+        $piece = Piece::factory()->create(['parse_status' => 'ready']);
+        $user = User::factory()->create();
+
+        $this->assertNull($this->actingAs($user)->get(route('player.show', $piece))->viewData('config')['annotations']);
+        $this->save($user, $piece, 'mine')->assertOk();
+        $this->actingAs($user)->get(route('player.show', $piece))->assertSee('Show annotations');
+        $this->assertSame([self::PAGES], $this->actingAs($user)->get(route('player.show', $piece))->viewData('config')['annotations']['layers']);
     }
 
     #[Test]
