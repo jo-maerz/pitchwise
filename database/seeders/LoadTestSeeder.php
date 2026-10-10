@@ -18,7 +18,7 @@ class LoadTestSeeder extends Seeder
     {
         $sessionsWanted = (int) (getenv('LOADTEST_SESSIONS') ?: 30000);
         $users = User::factory()->count(200)->create();
-        $pieces = Piece::whereNull('owner_id')->where('parse_status', 'ready')->with('notes')->get();
+        $pieces = Piece::whereNull('organization_id')->where('parse_status', 'ready')->with('notes')->get();
         if ($pieces->isEmpty()) {
             $this->command?->error('Run the CatalogueSeeder first.');
 

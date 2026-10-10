@@ -105,6 +105,20 @@ class MusicXmlParserTest extends TestCase
     }
 
     #[Test]
+    public function a_transposing_part_is_read_at_sounding_pitch(): void
+    {
+        // Clarinet in B♭: written D5 sounds C5. With an octave change (horn in F, bass clef): written C5 sounds F3.
+        $part = fn (string $transpose) => '<score-partwise><part-list/><part id="P1"><measure><attributes><divisions>1</divisions>'.$transpose.'</attributes>'
+            .'<note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration></note>'
+            .'<note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration></note></measure></part></score-partwise>';
+        $pitches = fn (string $xml) => array_column((new MusicXmlParser)->parseString($xml)->notes, 'midi_pitch');
+
+        $this->assertSame([72, 70], $pitches($part('<transpose><diatonic>-1</diatonic><chromatic>-2</chromatic></transpose>')));
+        $this->assertSame([55, 53], $pitches($part('<transpose><diatonic>-4</diatonic><chromatic>-7</chromatic><octave-change>-1</octave-change></transpose>')));
+        $this->assertSame([74, 72], $pitches($part('')));
+    }
+
+    #[Test]
     public function it_rejects_files_that_are_not_partwise_musicxml(): void
     {
         foreach ([
