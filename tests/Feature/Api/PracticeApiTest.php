@@ -57,6 +57,16 @@ class PracticeApiTest extends TestCase
     }
 
     #[Test]
+    public function a_token_stops_working_once_the_email_address_is_unverified(): void
+    {
+        $this->user->forceFill(['email_verified_at' => null])->save();
+
+        $this->api('GET', '/pieces/'.$this->piece->id)
+            ->assertForbidden()
+            ->assertJson(['message' => 'Your email address is not verified.']);
+    }
+
+    #[Test]
     public function it_serves_the_expected_notes_of_a_piece(): void
     {
         $this->api('GET', '/pieces/'.$this->piece->id)
