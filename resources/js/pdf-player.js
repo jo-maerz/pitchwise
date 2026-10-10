@@ -1,5 +1,6 @@
 import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { drawMarks } from './annotate/marks.js';
 import { openMicrophone } from './practice/audio.js';
 import { NoteSegmenter } from './practice/free-play.js';
 import { Gauge } from './practice/gauge.js';
@@ -153,21 +154,27 @@ if (configEl) {
         renderedWidth = width;
         const ratio = window.devicePixelRatio || 1;
         pagesEl.replaceChildren();
+        const pages = [];
         for (let n = 1; n <= pdf.numPages; n++) {
             const page = await pdf.getPage(n);
             const scale = width / page.getViewport({ scale: 1 }).width;
             const viewport = page.getViewport({ scale: scale * ratio });
+            const el = document.createElement('div');
             const canvas = document.createElement('canvas');
             canvas.width = Math.floor(viewport.width);
             canvas.height = Math.floor(viewport.height);
             canvas.style.width = `${width}px`;
-            canvas.className = 'bg-white shadow-sm';
+            canvas.className = 'block bg-white shadow-sm';
             canvas.setAttribute('role', 'img');
             canvas.setAttribute('aria-label', `Page ${n} of ${pdf.numPages} of the score`);
-            pagesEl.append(canvas);
+            el.append(canvas);
+            pagesEl.append(el);
             await page.render({ canvas, viewport }).promise;
+            pages.push({ el, width, height: Math.floor(viewport.height / ratio) });
         }
+        if (config.annotations) await drawMarks(pages, config.annotations.layers);
     };
+    $('show-annotations')?.addEventListener('change', (event) => pagesEl.classList.toggle('pi-marks-hidden', !event.target.checked));
     const scheduleRender = () => { rendering = rendering.then(renderPages).catch((e) => showWarning(`The PDF could not be drawn: ${e.message}`)); };
 
     pdfjs.getDocument({ url: config.pdfUrl, withCredentials: true }).promise

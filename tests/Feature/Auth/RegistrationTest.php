@@ -26,25 +26,26 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'account_type' => 'private',
         ]);
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
-    public function test_new_users_choose_an_organization_or_none(): void
+    public function test_new_users_register_as_private_users_or_members_of_an_institution(): void
     {
         $school = Organization::factory()->create(['name' => 'Riverside Strings']);
-        $this->get('/register')->assertSee('Riverside Strings')->assertSee('No organization');
+        $this->get('/register')->assertSee('Riverside Strings')->assertSee('Are you a private user?');
 
         $this->post('/register', [
             'name' => 'Member', 'email' => 'member@example.com', 'password' => 'password', 'password_confirmation' => 'password',
-            'organization_id' => $school->id,
+            'account_type' => 'organization', 'organization' => 'Riverside Strings',
         ])->assertRedirect();
         auth()->logout();
         $this->post('/register', [
             'name' => 'Loner', 'email' => 'loner@example.com', 'password' => 'password', 'password_confirmation' => 'password',
-            'organization_id' => '',
+            'account_type' => 'private', 'organization' => 'Riverside Strings',
         ])->assertRedirect();
 
         $member = User::where('email', 'member@example.com')->sole();
@@ -52,12 +53,22 @@ class RegistrationTest extends TestCase
         $this->assertNull(User::where('email', 'loner@example.com')->value('organization_id'));
     }
 
-    public function test_an_unknown_organization_is_rejected(): void
+    public function test_the_account_type_must_be_chosen(): void
     {
         $this->post('/register', [
             'name' => 'X', 'email' => 'x@example.com', 'password' => 'password', 'password_confirmation' => 'password',
-            'organization_id' => 999,
-        ])->assertSessionHasErrors('organization_id');
+        ])->assertSessionHasErrors('account_type');
+        $this->assertGuest();
+    }
+
+    public function test_members_must_name_a_known_institution(): void
+    {
+        foreach (['', 'Nowhere Academy'] as $organization) {
+            $this->post('/register', [
+                'name' => 'X', 'email' => 'x@example.com', 'password' => 'password', 'password_confirmation' => 'password',
+                'account_type' => 'organization', 'organization' => $organization,
+            ])->assertSessionHasErrors('organization');
+        }
         $this->assertGuest();
     }
 }

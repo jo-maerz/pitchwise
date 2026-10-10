@@ -15,6 +15,9 @@
     <div class="py-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div id="warning" class="mb-4 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900" role="alert" hidden></div>
+            @if ($config['annotations']['outdated'] ?? false)
+                <div class="mb-4 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">Some annotations were made on an earlier upload of this score. They may not sit on the right notes.</div>
+            @endif
 
             <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
                 {{-- Sidebar first in the DOM so the tuner sits on top on phones --}}
@@ -112,13 +115,18 @@
                     </section>
 
                     <div class="bg-white shadow-sm sm:rounded-lg p-2">
-                        <ul class="flex flex-wrap gap-3 px-2 py-1 text-xs text-gray-600" aria-label="Note colours">
-                            <li data-outcome="in_tune"><span class="pi-dot"></span>in tune</li>
-                            <li data-outcome="sharp"><span class="pi-dot"></span>too high</li>
-                            <li data-outcome="flat"><span class="pi-dot"></span>too low</li>
-                            <li data-outcome="wrong_note"><span class="pi-dot"></span>wrong note</li>
-                            <li data-outcome="missed"><span class="pi-dot"></span>missed</li>
-                        </ul>
+                        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-2 py-1">
+                            <ul class="flex flex-wrap gap-3 text-xs text-gray-600" aria-label="Note colours">
+                                <li data-outcome="in_tune"><span class="pi-dot"></span>in tune</li>
+                                <li data-outcome="sharp"><span class="pi-dot"></span>too high</li>
+                                <li data-outcome="flat"><span class="pi-dot"></span>too low</li>
+                                <li data-outcome="wrong_note"><span class="pi-dot"></span>wrong note</li>
+                                <li data-outcome="missed"><span class="pi-dot"></span>missed</li>
+                            </ul>
+                            @if ($config['annotations'])
+                                <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="show-annotations" checked class="rounded border-gray-300 text-indigo-600 disabled:opacity-40"> Show annotations <span id="annotations-hint" class="text-gray-400" hidden>(in the Pages layout)</span></label>
+                            @endif
+                        </div>
                         <div id="score" class="pi-score"></div>
                     </div>
                 </section>

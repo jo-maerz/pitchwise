@@ -17,22 +17,27 @@ class AnnotationController extends Controller
     {
         Gate::authorize('annotate', $piece);
         $user = $request->user();
-        $shared = $piece->annotations()->shared()->with('editor')->first();
+        // Only an organization's library has a shared layer: private users and the shared library keep personal marks alone.
+        $hasSharedLayer = $piece->organization_id !== null;
+        $shared = $hasSharedLayer ? $piece->annotations()->shared()->with('editor')->first() : null;
         $mine = $piece->annotations()->where('user_id', $user->id)->first();
+
+        $layers = ['mine' => $this->layer($piece, $mine, route('annotations.update', [$piece, 'mine']), true)];
+        if ($hasSharedLayer) {
+            $layers = ['shared' => $this->layer($piece, $shared, route('annotations.update', [$piece, 'shared']), $user->can('annotateShared', $piece))] + $layers;
+        }
 
         return view('pieces.annotate', [
             'piece' => $piece,
             'shared' => $shared,
+            'hasSharedLayer' => $hasSharedLayer,
             'canEditShared' => $user->can('annotateShared', $piece),
             'config' => [
                 'title' => $piece->title,
                 'source' => $piece->source_pdf_path !== null
                     ? ['type' => 'pdf', 'url' => route('pieces.pdf', $piece)]
                     : ['type' => 'musicxml', 'url' => route('pieces.file', $piece)],
-                'layers' => [
-                    'shared' => $this->layer($piece, $shared, route('annotations.update', [$piece, 'shared']), $user->can('annotateShared', $piece)),
-                    'mine' => $this->layer($piece, $mine, route('annotations.update', [$piece, 'mine']), true),
-                ],
+                'layers' => $layers,
             ],
         ]);
     }

@@ -1,6 +1,13 @@
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay';
 
 /**
+ * OSMD breaks a page into systems to fit its container's width. Pages laid out at this fixed width
+ * (OSMD units, 10 px each at zoom 1) break the same way on every screen, only scaled, so annotations
+ * drawn on them stay on their notes. 96 is the width the annotation page had on a desktop screen.
+ */
+const PAGE_WIDTH_UNITS = 96;
+
+/**
  * Wraps OpenSheetMusicDisplay: draws the score, moves its cursor, colours noteheads.
  *
  * Which notes count must match the server's parser (app/Services/MusicXml/MusicXmlParser.php):
@@ -42,9 +49,24 @@ export class ScoreView {
     /** @param {'pages'|'continuous'} layout */
     render(layout = 'pages') {
         this.osmd.setOptions({ pageFormat: layout === 'pages' ? 'A4_P' : 'Endless' });
+        this.osmd.zoom = layout === 'pages' ? this.fixedPageZoom() : 1;
         this.osmd.render();
         this.buildNoteMap();
         for (const [index, outcome] of this.colours) this.paint(index, outcome);
+    }
+
+    fixedPageZoom() {
+        const style = getComputedStyle(this.container);
+        const width = this.container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        return width / (PAGE_WIDTH_UNITS * 10);
+    }
+
+    /** The drawn A4 pages, each with its size in pixels. */
+    pages() {
+        return this.osmd.Drawer.Backends.map((backend) => {
+            const { width, height } = backend.getSvgElement().getBoundingClientRect();
+            return { el: backend.getInnerElement(), svg: backend.getSvgElement(), width, height };
+        });
     }
 
     buildNoteMap() {

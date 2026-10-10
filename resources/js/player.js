@@ -1,3 +1,4 @@
+import { drawMarks } from './annotate/marks.js';
 import { openMicrophone } from './practice/audio.js';
 import { PracticeApi, ApiError } from './practice/api-client.js';
 import { Gauge } from './practice/gauge.js';
@@ -52,6 +53,7 @@ class Player {
         $('#btn-start').addEventListener('click', () => this.start());
         $('#btn-stop').addEventListener('click', () => this.stop());
         $('#btn-skip').addEventListener('click', () => this.skip());
+        $('#show-annotations')?.addEventListener('change', (ev) => $('#score').classList.toggle('pi-marks-hidden', !ev.target.checked));
         document.addEventListener('keydown', (ev) => {
             if (ev.key === 'ArrowRight' && this.state === 'playing' && !ev.target.closest?.('input, select, textarea')) {
                 ev.preventDefault();
@@ -70,6 +72,20 @@ class Player {
             this.warn(`The score shows ${mapped} melody notes but the analysis has ${this.notes.length}. Colours may land on the wrong notes; the scoring itself is unaffected.`);
         }
         this.fillPageSelects();
+        this.drawAnnotations();
+    }
+
+    /** Annotations are drawn on A4 pages, so they have nowhere to go in the continuous layout. */
+    drawAnnotations() {
+        const toggle = $('#show-annotations');
+        if (!this.config.annotations || !toggle) return;
+        const onPages = this.settings.layout === 'pages';
+        toggle.disabled = !onPages;
+        $('#annotations-hint').hidden = onPages;
+        if (onPages) {
+            drawMarks(this.score.pages(), this.config.annotations.layers)
+                .catch((e) => this.warn(`The annotations could not be drawn: ${e.message}`));
+        }
     }
 
     // ---------------------------------------------------------------- settings

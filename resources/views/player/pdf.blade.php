@@ -19,6 +19,9 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
             @include('pieces._pdf-limits')
             <div id="warning" class="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900" role="alert" hidden></div>
+            @if ($config['annotations']['outdated'] ?? false)
+                <div class="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">Some annotations were made on an earlier upload of this score. They may not sit on the right notes.</div>
+            @endif
 
             <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
                 {{-- Sidebar first in the DOM so the tuner sits on top on phones --}}
@@ -45,7 +48,12 @@
                 </aside>
 
                 <div class="lg:order-1 min-w-0">
-                    <div id="pdf-status" class="text-sm text-gray-600" aria-live="polite">Loading the PDF…</div>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div id="pdf-status" class="text-sm text-gray-600" aria-live="polite">Loading the PDF…</div>
+                        @if ($config['annotations'])
+                            <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="show-annotations" checked class="rounded border-gray-300 text-indigo-600 disabled:opacity-40"> Show annotations</label>
+                        @endif
+                    </div>
                     <div id="pdf-pages" class="space-y-4"></div>
                 </div>
             </div>
