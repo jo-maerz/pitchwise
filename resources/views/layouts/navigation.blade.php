@@ -15,7 +15,7 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
-                    <x-nav-link :href="route('pieces.index')" :active="request()->routeIs('pieces.*') || request()->routeIs('player.*') || request()->routeIs('sessions.*')">
+                    <x-nav-link :href="route('pieces.index')" :active="request()->routeIs('pieces.*') || request()->routeIs('folders.*') || request()->routeIs('player.*') || request()->routeIs('sessions.*')">
                         {{ __('Pieces') }}
                     </x-nav-link>
                     <x-nav-link :href="route('tuner')" :active="request()->routeIs('tuner')">
@@ -76,7 +76,7 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('pieces.index')" :active="request()->routeIs('pieces.*')">
+            <x-responsive-nav-link :href="route('pieces.index')" :active="request()->routeIs('pieces.*') || request()->routeIs('folders.*')">
                 {{ __('Pieces') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('tuner')" :active="request()->routeIs('tuner')">

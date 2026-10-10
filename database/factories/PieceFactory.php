@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Organization;
 use App\Models\Piece;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -13,6 +14,8 @@ class PieceFactory extends Factory
     {
         return [
             'owner_id' => User::factory(),
+            'organization_id' => null,
+            'folder_id' => null,
             'title' => fake()->words(3, true),
             'composer' => fake()->name(),
             'instrument' => 'violin',
@@ -24,8 +27,9 @@ class PieceFactory extends Factory
         ];
     }
 
-    public function catalogue(): static
+    /** In one organization's library (a new organization unless given), so outsiders cannot see it. */
+    public function inOrganization(?Organization $organization = null): static
     {
-        return $this->state(['owner_id' => null]);
+        return $this->state(fn () => ['organization_id' => $organization ?? Organization::factory()]);
     }
 }
