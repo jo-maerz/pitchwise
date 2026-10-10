@@ -37,7 +37,8 @@
                                 <td>{{ $organization->folders_count }}</td>
                                 <td>{{ $organization->pieces_count }}</td>
                                 <td class="pr-6 text-right">
-                                    <form method="POST" action="{{ route('admin.organizations.destroy', $organization) }}"
+                                    <a href="{{ route('organizations.members', $organization) }}" class="mr-3 text-sm text-indigo-700 hover:underline">{{ __('Annotators') }}</a>
+                                    <form method="POST" action="{{ route('admin.organizations.destroy', $organization) }}" class="inline"
                                           onsubmit="return confirm(@js('Delete '.$organization->name.' with its '.$organization->pieces_count.' pieces and '.$organization->folders_count.' folders? Its members keep their accounts.'))">
                                         @csrf @method('DELETE')
                                         <button class="text-sm text-red-700 hover:underline">{{ __('Delete') }}</button>

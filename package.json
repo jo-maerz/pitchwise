@@ -19,7 +19,9 @@
     },
     "dependencies": {
         "chart.js": "^4.5.1",
+        "fabric": "^7.4.0",
         "opensheetmusicdisplay": "^2.2.0",
+        "pdf-lib": "^1.17.1",
         "pdfjs-dist": "^6.4.299",
         "pitchy": "^4.1.0"
     }

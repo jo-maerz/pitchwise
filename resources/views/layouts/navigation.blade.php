@@ -21,6 +21,11 @@
                     <x-nav-link :href="route('tuner')" :active="request()->routeIs('tuner')">
                         {{ __('Tuner') }}
                     </x-nav-link>
+                    @if (Auth::user()->organization && Auth::user()->can('manageMembers', Auth::user()->organization))
+                        <x-nav-link :href="route('organizations.members', Auth::user()->organization)" :active="request()->routeIs('organizations.*')">
+                            {{ __('Organization') }}
+                        </x-nav-link>
+                    @endif
                     @can('admin')
                         <x-nav-link :href="route('admin.index')" :active="request()->routeIs('admin.*')">
                             {{ __('Admin') }}
@@ -87,6 +92,11 @@
             <x-responsive-nav-link :href="route('tuner')" :active="request()->routeIs('tuner')">
                 {{ __('Tuner') }}
             </x-responsive-nav-link>
+            @if (Auth::user()->organization && Auth::user()->can('manageMembers', Auth::user()->organization))
+                <x-responsive-nav-link :href="route('organizations.members', Auth::user()->organization)" :active="request()->routeIs('organizations.*')">
+                    {{ __('Organization') }}
+                </x-responsive-nav-link>
+            @endif
             @can('admin')
                 <x-responsive-nav-link :href="route('admin.index')" :active="request()->routeIs('admin.*')">
                     {{ __('Admin') }}

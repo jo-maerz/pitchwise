@@ -14,6 +14,7 @@ export default defineConfig({
                 'resources/js/piece-stats.js',
                 'resources/js/score-preview.js',
                 'resources/js/pdf-player.js',
+                'resources/js/annotate.js',
             ],
             refresh: true,
         }),

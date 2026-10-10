@@ -47,6 +47,17 @@ class Piece extends Model
         return $this->hasMany(PracticeSession::class);
     }
 
+    public function annotations(): HasMany
+    {
+        return $this->hasMany(PieceAnnotation::class);
+    }
+
+    /** The file annotations are drawn on: the original PDF when there is one, else the MusicXML. */
+    public function annotationSourcePath(): ?string
+    {
+        return $this->source_pdf_path ?? $this->musicxml_path;
+    }
+
     public function isReady(): bool
     {
         return $this->parse_status === 'ready';
