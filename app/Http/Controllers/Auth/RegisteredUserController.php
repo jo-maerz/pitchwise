@@ -19,7 +19,7 @@ class RegisteredUserController extends Controller
 {
     public function create(): View
     {
-        return view('auth.register', ['organizations' => Organization::orderBy('name')->get(['id', 'name'])]);
+        return view('auth.register', ['organizations' => Organization::orderBy('name')->get(['name'])]);
     }
 
     /**
@@ -31,15 +31,18 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            // Empty means "no organization": only the shared library is visible.
-            'organization_id' => ['nullable', 'integer', Rule::exists(Organization::class, 'id')],
+            // A private user has no organization: only the shared library and their own annotations.
+            'account_type' => ['required', Rule::in(['private', 'organization'])],
+            'organization' => ['exclude_unless:account_type,organization', 'required', 'string', Rule::exists(Organization::class, 'name')],
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'organization_id' => $request->integer('organization_id') ?: null,
+            'organization_id' => $request->input('account_type') === 'organization'
+                ? Organization::where('name', $request->input('organization'))->value('id')
+                : null,
         ]);
 
         event(new Registered($user));

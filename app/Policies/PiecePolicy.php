@@ -23,16 +23,16 @@ class PiecePolicy
         return $this->view($user, $piece) && $piece->hasPdf();
     }
 
-    /** Annotations live in an organization's library only, and only its members see and make them. */
+    /** Everyone keeps their own marks on any piece they can see, private users included. */
     public function annotate(User $user, Piece $piece): bool
     {
-        return $user->belongsToOrganization($piece->organization_id);
+        return $this->view($user, $piece);
     }
 
-    /** The shared layer: the organization's admins, and members given the piece's instrument. */
+    /** The shared layer exists in an organization's library only: its admins, and members given the piece's instrument. */
     public function annotateShared(User $user, Piece $piece): bool
     {
-        return $this->annotate($user, $piece)
+        return $user->belongsToOrganization($piece->organization_id)
             && ($user->canManageLibrary($piece->organization_id) || $user->canAnnotateInstrument($piece->instrument));
     }
 

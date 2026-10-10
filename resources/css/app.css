@@ -27,6 +27,8 @@
 
 /* Score: colour noteheads by outcome (CSS beats VexFlow's fill attributes). */
 .pi-score { background: #fff; overflow-x: auto; }
+.pi-marks { position: absolute; inset: 0; pointer-events: none; }
+.pi-marks-hidden .pi-marks { display: none; }
 .pi-score g[data-outcome] .vf-notehead path,
 .pi-score g[data-outcome] .vf-notehead,
 .pi-score path[data-outcome] { fill: var(--pi-v); stroke: var(--pi-v); }

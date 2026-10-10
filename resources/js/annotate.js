@@ -1,20 +1,20 @@
 import { Canvas, IText, PencilBrush } from 'fabric';
 import { annotatedPdf, download, scorePdf } from './annotate/export-pdf.js';
+import { PAGE_UNITS } from './annotate/marks.js';
 import { renderPdfPages, renderScorePages } from './annotate/pages.js';
 import { STICKERS } from './annotate/stickers.js';
 
 /**
- * The annotation page: two layers of marks over every page of the score, the organization's shared
- * one and the user's own. Marks are Fabric.js objects in page units (a page is PAGE_UNITS wide),
- * saved per layer as one list of objects per page.
+ * The annotation page: layers of marks over every page of the score, the user's own and, in an
+ * organization's library, the organization's shared one. Marks are Fabric.js objects in page units
+ * (a page is PAGE_UNITS wide), saved per layer as one list of objects per page.
  */
-const PAGE_UNITS = 1000;
-const LAYERS = ['shared', 'mine'];
 
 const configEl = document.getElementById('annotate-config');
 if (configEl) start(JSON.parse(configEl.textContent));
 
 async function start(config) {
+    const LAYERS = Object.keys(config.layers);
     const $ = (id) => document.getElementById(id);
     const statusEl = $('annotate-status');
     const warningEl = $('annotate-warning');
@@ -177,7 +177,7 @@ async function start(config) {
         });
     }
     for (const name of LAYERS) {
-        $(`annotate-show-${name}`).addEventListener('change', (event) => {
+        $(`annotate-show-${name}`)?.addEventListener('change', (event) => {
             layers[name].visible = event.target.checked;
             applyTool();
         });
