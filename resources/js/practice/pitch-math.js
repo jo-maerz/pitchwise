@@ -1,6 +1,6 @@
 /**
  * The pitch rule, shared by the live display and the end-of-run report.
- * Mirrors api/src/PitchRule.php; both are tested against tests/fixtures/pitch-rule-cases.json.
+ * Mirrors app/Support/PitchRule.php; both are tested against tests/fixtures/pitch-rule-cases.json.
  *
  *   expected Hz = reference · 2^((midi − 69) / 12)
  *   cents       = 1200 · log2(played / expected)

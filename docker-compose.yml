@@ -14,7 +14,7 @@ x-app: &app
       condition: service_healthy
 
 services:
-  # HTTPS, static files, routing of / and /api/v1.
+  # HTTPS, static files, PHP handed to app.
   web:
     build:
       context: .
@@ -32,7 +32,7 @@ services:
       app:
         condition: service_healthy
 
-  # Laravel website + plain-PHP API (php-fpm). Runs migrations on start.
+  # Laravel website + practice API (php-fpm). Runs migrations on start.
   app:
     <<: *app
     environment:

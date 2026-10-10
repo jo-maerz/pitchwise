@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Support\PitchRule;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use PracticeApi\PitchRule;
 
 /** The same cases run in tests/js/pitch-math.test.mjs, so server and browser cannot drift apart. */
 class PitchRuleTest extends TestCase

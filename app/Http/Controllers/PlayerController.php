@@ -22,7 +22,7 @@ class PlayerController extends Controller
                 'pieceId' => $piece->id,
                 'title' => $piece->title,
                 'scoreUrl' => route('pieces.file', $piece),
-                'apiUrl' => rtrim(config('practice.api_url'), '/'),
+                'apiUrl' => url('api/v1'),
                 'token' => $this->tokens->issue($request->user()),
                 'reportUrl' => url('/sessions'),
                 'defaults' => [

@@ -43,7 +43,7 @@ class Player {
             this.renderScore();
         } catch (e) {
             this.fail(e instanceof ApiError && e.code === 'network'
-                ? 'Could not reach the practice API. Is it running? (see the README: php -S 127.0.0.1:8001 -t api/public)'
+                ? 'Could not reach the server. Check your connection and reload the page.'
                 : `Could not load this piece: ${e.message}`);
             return;
         }

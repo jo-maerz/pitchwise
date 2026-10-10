@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "seulgi/pitchwise",
     "type": "project",
-    "description": "Pitchwise: live intonation tuner and per-note pitch report on sheet music (Laravel + plain-PHP API + MySQL).",
+    "description": "Pitchwise: live intonation tuner and per-note pitch report on sheet music (Laravel + MySQL).",
     "keywords": [
         "laravel",
         "framework"
@@ -26,8 +26,7 @@
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/",
-            "PracticeApi\\": "api/src/"
+            "Database\\Seeders\\": "database/seeders/"
         }
     },
     "autoload-dev": {
@@ -68,10 +67,6 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
-        ],
-        "serve-api": [
-            "Composer\\Config::disableProcessTimeout",
-            "php -S 127.0.0.1:8001 -t api/public"
         ]
     },
     "extra": {
@@ -86,6 +81,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "platform": {
+            "php": "8.3.0"
         }
     },
     "minimum-stability": "stable",

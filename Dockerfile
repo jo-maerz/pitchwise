@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # One image per role, built from one file:
-#   app  = php-fpm with the Laravel site + plain-PHP API. Also runs the queue worker and the scheduler.
+#   app  = php-fpm with the Laravel site and API. Also runs the queue worker and the scheduler.
 #   web  = Caddy: terminates HTTPS, serves static files, hands PHP to `app`.
 
 # --- 1. PHP dependencies (production only) ---------------------------------
@@ -49,7 +49,6 @@ CMD ["php-fpm"]
 FROM caddy:2-alpine AS web
 COPY docker/Caddyfile /etc/caddy/Caddyfile
 COPY --from=app /var/www/html/public /var/www/html/public
-COPY --from=app /var/www/html/api/public /var/www/html/api/public
 
 # --- 5. OMR: Audiveris reads PDF scores ------------------------------------
 # Separate image because Audiveris ships as an Ubuntu x86-64 package with its own Java runtime.
