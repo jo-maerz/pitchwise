@@ -8,6 +8,8 @@
             <form method="POST" action="{{ route('pieces.store') }}" enctype="multipart/form-data" class="bg-white shadow-sm sm:rounded-lg p-6 space-y-5">
                 @csrf
 
+                @include('pieces._location')
+
                 <div>
                     <x-input-label for="score" :value="__('Score file (MusicXML or PDF)')" />
                     <input id="score" name="score" type="file" accept=".musicxml,.xml,.mxl,.pdf" required
@@ -45,9 +47,7 @@
                     <div>
                         <x-input-label for="instrument" :value="__('Instrument')" />
                         <select id="instrument" name="instrument" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
-                            @foreach (['violin', 'viola', 'cello', 'double bass', 'flute', 'voice', 'other'] as $instrument)
-                                <option value="{{ $instrument }}" @selected(old('instrument', 'violin') === $instrument)>{{ ucfirst($instrument) }}</option>
-                            @endforeach
+                            @include('pieces._instrument-options', ['selected' => old('instrument', 'violin')])
                         </select>
                         <x-input-error :messages="$errors->get('instrument')" class="mt-2" />
                     </div>

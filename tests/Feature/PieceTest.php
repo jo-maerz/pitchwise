@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ParseMusicXml;
+use App\Models\Organization;
 use App\Models\Piece;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,9 +27,9 @@ class PieceTest extends TestCase
     {
         Storage::fake('local');
         Queue::fake();
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
-        $response = $this->actingAs($user)->post(route('pieces.store'), [
+        $response = $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Edge cases', 'instrument' => 'violin', 'default_bpm' => 72, 'score' => $this->scoreUpload(),
         ]);
 
@@ -44,10 +45,10 @@ class PieceTest extends TestCase
     public function the_parse_job_saves_the_expected_notes(): void
     {
         Storage::fake('local');
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         // Sync queue in tests: the job runs during the request.
-        $this->actingAs($user)->post(route('pieces.store'), [
+        $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Edge cases', 'instrument' => 'violin', 'default_bpm' => 72, 'score' => $this->scoreUpload(),
         ]);
 
@@ -63,11 +64,11 @@ class PieceTest extends TestCase
     public function a_broken_score_is_marked_failed(): void
     {
         Storage::fake('local');
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
         $file = UploadedFile::fake()->createWithContent('rests.musicxml',
             '<?xml version="1.0"?><score-partwise><part-list/><part id="P1"><measure><note><rest/><duration>1</duration></note></measure></part></score-partwise>');
 
-        $this->actingAs($user)->post(route('pieces.store'), [
+        $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Only rests', 'instrument' => 'violin', 'default_bpm' => 60, 'score' => $file,
         ]);
 
@@ -77,14 +78,14 @@ class PieceTest extends TestCase
     #[Test]
     public function uploads_must_look_like_musicxml(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
-        $this->actingAs($user)->post(route('pieces.store'), [
+        $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Nope', 'instrument' => 'violin', 'default_bpm' => 60,
             'score' => UploadedFile::fake()->createWithContent('notes.xml', '<html>hi</html>'),
         ])->assertSessionHasErrors('score');
 
-        $this->actingAs($user)->post(route('pieces.store'), [
+        $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Nope', 'instrument' => 'violin', 'default_bpm' => 999,
             'score' => UploadedFile::fake()->create('song.mp3', 10),
         ])->assertSessionHasErrors(['score', 'default_bpm']);
@@ -93,25 +94,40 @@ class PieceTest extends TestCase
     }
 
     #[Test]
-    public function uploads_are_private_and_the_catalogue_is_shared(): void
+    public function organization_pieces_are_for_members_and_the_shared_library_for_everyone(): void
     {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
-        $private = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'ready', 'title' => 'Mine']);
-        $catalogue = Piece::factory()->catalogue()->create(['parse_status' => 'ready', 'title' => 'Shared']);
+        $school = Organization::factory()->create();
+        $member = User::factory()->create(['organization_id' => $school->id]);
+        $outsider = User::factory()->create();
+        $private = Piece::factory()->inOrganization($school)->create(['parse_status' => 'ready', 'title' => 'School piece']);
+        $shared = Piece::factory()->create(['parse_status' => 'ready', 'title' => 'Shared piece']);
 
-        $this->actingAs($other)->get(route('pieces.show', $private))->assertForbidden();
-        $this->actingAs($other)->get(route('player.show', $private))->assertForbidden();
-        $this->actingAs($other)->delete(route('pieces.destroy', $catalogue))->assertForbidden();
-        $this->actingAs($other)->get(route('pieces.index'))->assertOk()->assertSee('Shared')->assertDontSee('Mine');
-        $this->actingAs($owner)->get(route('pieces.index'))->assertSee('Mine')->assertSee('Shared');
+        $this->actingAs($outsider)->get(route('pieces.show', $private))->assertForbidden();
+        $this->actingAs($outsider)->get(route('player.show', $private))->assertForbidden();
+        $this->actingAs($outsider)->get(route('pieces.index'))->assertOk()->assertSee('Shared piece')->assertDontSee('School piece');
+        $this->actingAs($member)->get(route('pieces.index'))->assertSee('Shared piece')->assertSee('School piece')->assertSee($school->name);
+        $this->actingAs($member)->get(route('player.show', $private))->assertOk();
+        $this->actingAs($member)->delete(route('pieces.destroy', $shared))->assertForbidden();
+        $this->actingAs($member)->delete(route('pieces.destroy', $private))->assertForbidden();
+    }
+
+    #[Test]
+    public function plain_users_cannot_upload(): void
+    {
+        $user = User::factory()->create(['organization_id' => Organization::factory()->create()->id]);
+
+        $this->actingAs($user)->get(route('pieces.create'))->assertForbidden();
+        $this->actingAs($user)->post(route('pieces.store'), [
+            'location' => 'root:'.$user->organization_id, 'title' => 'Nope', 'instrument' => 'violin', 'default_bpm' => 60, 'score' => $this->scoreUpload(),
+        ])->assertForbidden();
+        $this->actingAs($user)->get(route('pieces.index'))->assertDontSee('Upload a score');
     }
 
     #[Test]
     public function a_piece_that_is_not_ready_cannot_be_played(): void
     {
-        $owner = User::factory()->create();
-        $piece = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'pending']);
+        $owner = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'pending']);
 
         $this->actingAs($owner)->get(route('player.show', $piece))->assertForbidden();
     }
@@ -121,8 +137,8 @@ class PieceTest extends TestCase
     {
         Storage::fake('local');
         Storage::disk('local')->put('pieces/x.musicxml', '<score-partwise/>');
-        $owner = User::factory()->create();
-        $piece = Piece::factory()->for($owner, 'owner')->create(['musicxml_path' => 'pieces/x.musicxml']);
+        $owner = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['musicxml_path' => 'pieces/x.musicxml']);
 
         $this->actingAs($owner)->delete(route('pieces.destroy', $piece))->assertRedirect(route('pieces.index'));
 
@@ -135,8 +151,8 @@ class PieceTest extends TestCase
     {
         Storage::fake('local');
         Queue::fake();
-        $user = User::factory()->create();
-        $this->actingAs($user)->post(route('pieces.store'), [
+        $user = User::factory()->admin()->create();
+        $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Old', 'instrument' => 'violin', 'default_bpm' => 72, 'score' => $this->scoreUpload(),
         ]);
         $piece = Piece::sole();
@@ -156,8 +172,8 @@ class PieceTest extends TestCase
     {
         Storage::fake('local');
         Queue::fake();
-        $user = User::factory()->create();
-        $this->actingAs($user)->post(route('pieces.store'), [
+        $user = User::factory()->admin()->create();
+        $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Old', 'instrument' => 'violin', 'default_bpm' => 72, 'score' => $this->scoreUpload(),
         ]);
         $piece = Piece::sole();
@@ -180,11 +196,11 @@ class PieceTest extends TestCase
     {
         Storage::fake('local');
         Queue::fake();
-        $this->actingAs(User::factory()->create())->post(route('pieces.store'), [
+        $this->actingAs(User::factory()->admin()->create())->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Mine', 'instrument' => 'violin', 'default_bpm' => 72, 'score' => $this->scoreUpload(),
         ]);
 
-        $this->actingAs(User::factory()->create())->put(route('pieces.update', Piece::sole()), [
+        $this->actingAs(User::factory()->orgAdmin()->create())->put(route('pieces.update', Piece::sole()), [
             'title' => 'Hijacked', 'instrument' => 'violin', 'default_bpm' => 72,
         ])->assertForbidden();
         $this->assertSame('Mine', Piece::sole()->title);
