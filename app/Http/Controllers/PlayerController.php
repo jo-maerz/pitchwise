@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Piece;
 use App\Services\PlayerTokenService;
+use App\Support\Instruments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -57,11 +58,14 @@ class PlayerController extends Controller
     public function tuner(): View
     {
         return view('player.tuner', [
-            'config' => ['defaults' => [
-                'referenceHz' => config('practice.reference_hz'),
-                'toleranceMode' => config('practice.tolerance.mode'),
-                'toleranceValue' => config('practice.tolerance.value'),
-            ]],
+            'config' => [
+                'defaults' => [
+                    'referenceHz' => config('practice.reference_hz'),
+                    'toleranceMode' => config('practice.tolerance.mode'),
+                    'toleranceValue' => config('practice.tolerance.value'),
+                ],
+                'instruments' => Instruments::forTuner(),
+            ],
         ]);
     }
 }

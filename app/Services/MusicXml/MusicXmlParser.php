@@ -17,7 +17,8 @@ use ZipArchive;
  *    optional `times`), numbered endings (voltas) and the jumps written as <sound> marks:
  *    D.C., D.S. (segno), Fine and To Coda. On the way back repeats are not played again and
  *    the highest-numbered ending is taken. The written measure number is kept;
- *  - beats are quarter notes, whatever the time signature.
+ *  - beats are quarter notes, whatever the time signature;
+ *  - a part for a transposing instrument (<transpose>, e.g. clarinet in B♭) is turned into sounding pitch.
  */
 class MusicXmlParser
 {
@@ -50,6 +51,7 @@ class MusicXmlParser
         $pos = 0.0;              // beats from start of current measure
         $measureLength = 0.0;
         $sawRoot = false;
+        $transpose = 0;          // semitones from written to sounding pitch
 
         $ok = @$reader->read();
         while ($ok) {
@@ -125,6 +127,9 @@ class MusicXmlParser
                         break;
                     case 'attributes':
                         $attrs = $this->element($reader);
+                        if (isset($attrs->transpose)) {
+                            $transpose = (int) $attrs->transpose->chromatic + 12 * (int) $attrs->transpose->{'octave-change'};
+                        }
                         if (isset($attrs->divisions) && (float) $attrs->divisions > 0) {
                             $divisions = (float) $attrs->divisions;
                         }
@@ -162,7 +167,7 @@ class MusicXmlParser
 
                         $current['notes'][] = [
                             'measure' => $measureIndex,
-                            'midi_pitch' => $this->midi($note->pitch),
+                            'midi_pitch' => $this->midi($note->pitch, $transpose),
                             'onset' => round($onset, 4),
                             'duration' => round($duration, 4),
                             'tie_stop' => in_array('stop', array_map(fn ($tie) => (string) $tie['type'], iterator_to_array($note->tie, false)), true),
@@ -388,7 +393,7 @@ class MusicXmlParser
         return isset($el->duration) ? (float) $el->duration / $divisions : 0.0;
     }
 
-    private function midi(\SimpleXMLElement $pitch): int
+    private function midi(\SimpleXMLElement $pitch, int $transpose = 0): int
     {
         $step = strtoupper(trim((string) $pitch->step));
         if (! isset(self::STEPS[$step])) {
@@ -396,7 +401,7 @@ class MusicXmlParser
         }
         $octave = (int) $pitch->octave;
         $alter = isset($pitch->alter) ? (float) $pitch->alter : 0.0;
-        $midi = (int) round(($octave + 1) * 12 + self::STEPS[$step] + $alter);
+        $midi = (int) round(($octave + 1) * 12 + self::STEPS[$step] + $alter) + $transpose;
         if ($midi < 0 || $midi > 127) {
             throw new MusicXmlException('Pitch out of range.');
         }

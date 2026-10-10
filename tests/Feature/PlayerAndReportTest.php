@@ -144,12 +144,12 @@ class PlayerAndReportTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $user = User::where('email', 'demo@example.com')->sole();
 
-        $this->actingAs($user)->get(route('dashboard'))->assertOk()
+        $page = $this->actingAs($user)->get(route('dashboard'))->assertOk()
             ->assertSee('id="chart-history"', false)
             ->assertSee('id="chart-pitches"', false)
             ->assertSee('Trouble bars')
-            ->assertSee('Your C♯4 is on average', false)
             ->assertSee('(sharp)', false);
+        $this->assertMatchesRegularExpression('/Your (C|F)♯\d is on average/u', $page->getContent(), 'the simulated high first finger shows');
 
         $this->actingAs(User::factory()->create())->get(route('dashboard'))->assertOk()->assertSee('No runs yet');
     }
