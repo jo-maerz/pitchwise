@@ -21,6 +21,11 @@
                     <x-nav-link :href="route('tuner')" :active="request()->routeIs('tuner')">
                         {{ __('Tuner') }}
                     </x-nav-link>
+                    @can('admin')
+                        <x-nav-link :href="route('admin.index')" :active="request()->routeIs('admin.*')">
+                            {{ __('Admin') }}
+                        </x-nav-link>
+                    @endcan
                 </div>
             </div>
 
@@ -82,6 +87,11 @@
             <x-responsive-nav-link :href="route('tuner')" :active="request()->routeIs('tuner')">
                 {{ __('Tuner') }}
             </x-responsive-nav-link>
+            @can('admin')
+                <x-responsive-nav-link :href="route('admin.index')" :active="request()->routeIs('admin.*')">
+                    {{ __('Admin') }}
+                </x-responsive-nav-link>
+            @endcan
         </div>
 
         <!-- Responsive Settings Options -->
