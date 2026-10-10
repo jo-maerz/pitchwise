@@ -65,7 +65,7 @@ DB_PASSWORD=
 ```
 
 ```bash
-php artisan migrate --seed  # demo user demo@example.com / password, 3 catalogue pieces, 14 fake runs
+php artisan migrate --seed  # demo users (below), the shared and Demo Music School libraries, 60 fake runs
 npm install
 npm run build               # or `npm run dev` while working on the JS
 ```
@@ -78,7 +78,7 @@ php artisan queue:work                   # parses uploaded MusicXML, hands PDFs 
 php artisan schedule:work                # rolls finished runs into the dashboard stats every 5 min
 ```
 
-Open http://localhost:8000, log in as the demo user, **Pieces → ▶ Practise**. The browser asks for the microphone; that only works on `https://` or `localhost`.
+Open http://localhost:8000, log in as a demo user, **Pieces → ▶ Practise**. Seeded accounts (password `password`): `admin@example.com` (admin), `teacher@example.com` (organization admin of *Demo Music School*), `demo@example.com` (user in *Demo Music School*, with practice history). The browser asks for the microphone; that only works on `https://` or `localhost`.
 
 Relevant `.env` keys (all in `.env.example`):
 
@@ -139,6 +139,34 @@ The PDF page (`resources/views/player/pdf.blade.php`, `resources/js/pdf-player.j
 
 This first version was built in a sandbox without Packagist or npm access; PHP packages were mirrored from GitHub tags. That lock file pointed at local paths, so it was removed. Run `composer install` once and commit the `composer.lock` it writes; same for `package-lock.json` after `npm install`.
 
+## Organizations, roles and folders
+
+Every user belongs to at most one **organization** (chosen when registering, "No organization" allowed; an admin can change it). Pieces and folders live in a **library**: the shared library (`organization_id` NULL, seen by everyone) or one organization's (seen by its members).
+
+| Role (`users.role`, `App\Enums\Role`) | Can |
+| --- | --- |
+| `admin` | everything: every library, the **Admin** page (`/admin`: organizations CRUD, each user's role and organization) |
+| `org_admin` | create, rename, delete folders and upload, edit, move, delete pieces in their organization's library |
+| `user` | browse and practise the shared library and their organization's library |
+
+- Rules: `User::canManageLibrary()`, `App\Models\Concerns\InLibrary` (visibility scope used by `Piece` and `Folder`), `PiecePolicy`, `FolderPolicy`, gate `admin`.
+- Folders nest (`folders.parent_id`). Managers rename them in place (the pencil next to a folder's name, `components/folder-name.blade.php`). Only empty folders can be deleted. Forms send a piece's place as one key: `root:shared`, `root:<organization id>` or `folder:<folder id>` (`LibraryService::resolve()`).
+- Deleting an organization deletes its folders, pieces, files and runs; its members stay without an organization, its organization admins become users.
+- The first admin of a fresh install: register, then `php artisan practice:make-admin you@example.com`.
+- Pieces uploaded before this change have no organization, so they now sit in the shared library. Move or delete them as admin.
+
+### Seeded libraries
+
+- **Shared library** (`CatalogueSeeder`): `Warm-ups` (open strings, a two-octave G major scale), `Pieces` (Twinkle, Ode to Joy for violin and cello, Petzold's Minuet in G with repeats, Greensleeves in 6/8, the opening of Bach's Cello Suite No. 1 Prelude) `Winds/B♭ instruments` (clarinet, trumpet, tenor saxophone) and `Winds/E♭ instruments` (alto and baritone saxophone), written at the instrument's pitch, and five single-line exercises per instrument in `Scales/Violin` and `Scales/Cello`, following the patterns of Carl Flesch's *Scale System*: one-string scales, three-octave scale, arpeggios on the keynote, broken thirds, chromatic scale. The Flesch book itself is not public domain everywhere and has double stops the player cannot check, so these files are written for Pitchwise, not copied from an edition.
+- **Demo Music School** (`DemoSchoolSeeder`, uploaded by the teacher): `Beginners` (Frère Jacques for violin, Hot Cross Buns for flute, Mary Had a Little Lamb for clarinet in B♭) `Winter concert` (Jingle Bells for violin, cello and trumpet in B♭) and `Spring concert` (Happy Birthday for violin, cello, clarinet and alto saxophone; Yankee Doodle for flute, trumpet and tenor saxophone; every part sounds in F major).
+- **Practice history** (`DemoHistorySeeder`): 60 runs over twelve weeks for `demo@example.com` on every violin piece they can see, scales and warm-ups most often; C♯ and F♯ start sharp and improve.
+
+Files: `database/seeders/scores/{pieces,scales/violin,scales/cello,winds,demo-school}`.
+
+### Instruments
+
+`App\Support\Instruments` is the one list of instruments (strings, woodwinds, brass, voice): upload validation, the instrument filter on the Pieces page, and the tuner, which shows open strings or the usual tuning notes. For B♭, E♭ and F instruments it also names the written note. Scores for transposing instruments are read at sounding pitch when the MusicXML carries `<transpose>` (every notation program writes it for clarinet, trumpet, horn or saxophone parts), so a B♭ trumpet part is checked against the notes that actually sound. The player's dial names sounding pitch.
+
 ## The pitch rule
 
 ```
@@ -196,7 +224,9 @@ Get a token for manual testing with `php artisan tinker --execute 'echo app(App\
 
 | Table               | Key columns                                                                                                                           | Notes                                                                                                    |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `pieces`            | id, owner_id (NULL = catalogue), title, composer, instrument, musicxml_path, default_bpm, beats_per_measure, note_count, parse_status | `parse_status`: pending → ready / failed                                                                 |
+| `organizations`     | id, name (unique) | |
+| `folders`           | id, organization_id (NULL = shared library), parent_id, name | only empty folders can be deleted |
+| `pieces`            | id, owner_id (uploader, NULL for seeded pieces), organization_id (NULL = shared library), folder_id, title, composer, instrument, musicxml_path, default_bpm, beats_per_measure, note_count, parse_status | `parse_status`: pending → ready / failed                                                                 |
 | `piece_notes`       | piece_id, note_index, measure, midi_pitch, onset_beats, duration_beats                                                                | unique (piece_id, note_index); written by the parse job                                                  |
 | `practice_sessions` | user_id, piece_id, bpm, tolerance_mode, tolerance_value, reference_hz, latency_ms, started_at, finished_at, score_pct, aggregated_at  | index (user_id, piece_id, finished_at), index (user_id, finished_at), index (finished_at, aggregated_at) |
 | `note_results`      | session_id, note_index, expected_midi, detected_midi, detected_hz, cents_offset, outcome ENUM, clarity                                | unique (session_id, note_index)                                                                          |
@@ -204,7 +234,7 @@ Get a token for manual testing with `php artisan tinker --execute 'echo app(App\
 
 Additions to the playbook's first data model: `onset_beats` (the browser needs note positions, and rests take time), the per-run pitch rule columns, `detected_hz` (so the server can judge), `beats_per_measure` (count-in), `parse_status`, and nullable `owner_id` for the shared catalogue.
 
-Which notes count — the parser and the browser's note map use the same rules: first part, lowest voice, pitched notes, first written note of a chord, no grace or cue notes, tied continuations merged, repeats and numbered endings expanded, plus D.C./D.S./Fine/coda jumps, beats = quarter notes.
+Which notes count — the parser and the browser's note map use the same rules: first part, lowest voice, pitched notes at sounding pitch, first written note of a chord, no grace or cue notes, tied continuations merged, repeats and numbered endings expanded, plus D.C./D.S./Fine/coda jumps, beats = quarter notes.
 
 ## Tests
 
@@ -220,7 +250,7 @@ The API tests call the routes with tokens from `PlayerTokenService`, the same on
 
 ## Known limits
 
-- One melody line: chords, double stops and piano are out of scope. Transposing instruments and tempo changes inside a piece are not handled; pick simple pieces.
+- One melody line: chords, double stops and piano are out of scope. Tempo changes inside a piece are not handled, and transposing parts need a `<transpose>` element in the MusicXML; pick simple pieces.
 - Pitch only, not rhythm: the cursor sets the time and notes are judged in their window.
 - If the browser tab is hidden, animation frames stop and notes come out as missed (the player warns).
 - `autoResize` is off on the score so colours survive a run; switching layout re-renders.
