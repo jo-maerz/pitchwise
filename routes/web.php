@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\OrganizationController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\PieceController;
@@ -39,6 +42,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::middleware('can:admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', AdminController::class)->name('index');
+        Route::post('/organizations', [OrganizationController::class, 'store'])->name('organizations.store');
+        Route::put('/organizations/{organization}', [OrganizationController::class, 'update'])->name('organizations.update');
+        Route::delete('/organizations/{organization}', [OrganizationController::class, 'destroy'])->name('organizations.destroy');
+        Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    });
 });
 
 require __DIR__.'/auth.php';
