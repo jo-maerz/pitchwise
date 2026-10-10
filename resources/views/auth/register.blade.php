@@ -16,6 +16,18 @@
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
+        <div class="mt-4">
+            <x-input-label for="organization_id" :value="__('Organization')" />
+            <select id="organization_id" name="organization_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                <option value="">{{ __('No organization') }}</option>
+                @foreach ($organizations as $organization)
+                    <option value="{{ $organization->id }}" @selected((string) old('organization_id') === (string) $organization->id)>{{ $organization->name }}</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-sm text-gray-500">{{ __('Your school or orchestra. Without one you see the shared library only.') }}</p>
+            <x-input-error :messages="$errors->get('organization_id')" class="mt-2" />
+        </div>
+
         <!-- Password -->
         <div class="mt-4">
             <x-input-label for="password" :value="__('Password')" />
