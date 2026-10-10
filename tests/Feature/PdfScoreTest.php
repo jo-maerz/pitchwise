@@ -47,7 +47,7 @@ class PdfScoreTest extends TestCase
     private function uploadPdf(User $user): Piece
     {
         Queue::fake();
-        $this->actingAs($user)->post(route('pieces.store'), [
+        $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'From PDF', 'instrument' => 'violin', 'default_bpm' => 70, 'score' => $this->pdf(),
         ]);
 
@@ -65,7 +65,7 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function a_pdf_is_stored_and_queued_for_recognition(): void
     {
-        $piece = $this->uploadPdf(User::factory()->create());
+        $piece = $this->uploadPdf(User::factory()->admin()->create());
 
         $this->assertNull($piece->musicxml_path);
         Storage::disk('local')->assertExists($piece->source_pdf_path);
@@ -76,7 +76,7 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function a_file_that_is_not_a_pdf_is_rejected(): void
     {
-        $this->actingAs(User::factory()->create())->post(route('pieces.store'), [
+        $this->actingAs(User::factory()->admin()->create())->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Nope', 'instrument' => 'violin', 'default_bpm' => 70, 'score' => $this->pdf('nope.pdf', 'hello'),
         ])->assertSessionHasErrors('score');
 
@@ -86,7 +86,7 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function the_job_hands_the_pdf_to_the_spool_and_waits(): void
     {
-        $piece = $this->uploadPdf(User::factory()->create());
+        $piece = $this->uploadPdf(User::factory()->admin()->create());
 
         $job = $this->runJob($piece);
 
@@ -98,7 +98,7 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function a_recognised_score_waits_for_the_owners_confirmation(): void
     {
-        $owner = User::factory()->create();
+        $owner = User::factory()->admin()->create();
         $piece = $this->uploadPdf($owner);
         $this->runJob($piece); // submits
         copy(base_path('tests/fixtures/edge-cases.musicxml'), $this->spool.'/out/'.$piece->id.'.mxl');
@@ -122,8 +122,8 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function only_the_owner_can_confirm_and_only_while_review_is_pending(): void
     {
-        $owner = User::factory()->create();
-        $piece = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'needs_review']);
+        $owner = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'needs_review']);
 
         $this->actingAs(User::factory()->create())->post(route('pieces.confirm', $piece))->assertForbidden();
 
@@ -134,7 +134,7 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function a_failed_recognition_marks_the_piece_failed(): void
     {
-        $piece = $this->uploadPdf(User::factory()->create());
+        $piece = $this->uploadPdf(User::factory()->admin()->create());
         $this->runJob($piece);
         file_put_contents($this->spool.'/out/'.$piece->id.'.failed', 'Audiveris found no music in this PDF.');
 
@@ -146,8 +146,8 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function the_review_page_shows_warnings_and_the_confirm_button(): void
     {
-        $owner = User::factory()->create();
-        $piece = Piece::factory()->for($owner, 'owner')->create([
+        $owner = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create([
             'parse_status' => 'needs_review', 'musicxml_path' => 'pieces/x.mxl', 'review_notes' => 'Bars with more beats than allowed: 3.',
         ]);
 
@@ -186,7 +186,7 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function warnings_from_the_recogniser_reach_the_review_notes(): void
     {
-        $piece = $this->uploadPdf(User::factory()->create());
+        $piece = $this->uploadPdf(User::factory()->admin()->create());
         $this->runJob($piece); // submits
         copy(base_path('tests/fixtures/edge-cases.musicxml'), $this->spool.'/out/'.$piece->id.'.mxl');
         file_put_contents($this->spool.'/out/'.$piece->id.'.warn', "Page 2 could not be read and was skipped.\n");
@@ -207,9 +207,9 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function musicxml_and_pdf_together_give_a_normal_piece_that_also_has_the_pdf(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
-        $this->actingAs($user)->post(route('pieces.store'), [
+        $this->actingAs($user)->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Both', 'instrument' => 'violin', 'default_bpm' => 70, 'score' => $this->xml(), 'pdf' => $this->pdf(),
         ])->assertSessionHasNoErrors();
 
@@ -227,7 +227,7 @@ class PdfScoreTest extends TestCase
     {
         Queue::fake();
 
-        $this->actingAs(User::factory()->create())->post(route('pieces.store'), [
+        $this->actingAs(User::factory()->admin()->create())->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Both', 'instrument' => 'violin', 'default_bpm' => 70, 'score' => $this->xml(), 'pdf' => $this->pdf(),
         ]);
 
@@ -238,11 +238,11 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function a_second_pdf_next_to_a_pdf_score_is_rejected(): void
     {
-        $this->actingAs(User::factory()->create())->post(route('pieces.store'), [
+        $this->actingAs(User::factory()->admin()->create())->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Twice', 'instrument' => 'violin', 'default_bpm' => 70, 'score' => $this->pdf(), 'pdf' => $this->pdf('two.pdf'),
         ])->assertSessionHasErrors('pdf');
 
-        $this->actingAs(User::factory()->create())->post(route('pieces.store'), [
+        $this->actingAs(User::factory()->admin()->create())->post(route('pieces.store'), ['location' => 'root:shared',
             'title' => 'Fake', 'instrument' => 'violin', 'default_bpm' => 70, 'score' => $this->xml(), 'pdf' => $this->pdf('x.pdf', 'not a pdf'),
         ])->assertSessionHasErrors('pdf');
     }
@@ -251,9 +251,9 @@ class PdfScoreTest extends TestCase
     public function the_pdf_page_and_file_are_for_people_who_may_see_a_piece_with_a_pdf(): void
     {
         Storage::disk('local')->put('pieces/1/a.pdf', "%PDF-1.7\n");
-        $owner = User::factory()->create();
-        $piece = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'pdf_only', 'musicxml_path' => null, 'source_pdf_path' => 'pieces/1/a.pdf']);
-        $noPdf = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'ready']);
+        $owner = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'pdf_only', 'musicxml_path' => null, 'source_pdf_path' => 'pieces/1/a.pdf']);
+        $noPdf = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'ready']);
 
         $this->actingAs($owner)->get(route('pieces.pdf', $piece))->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $this->actingAs($owner)->get(route('player.pdf', $piece))
@@ -270,7 +270,7 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function a_recognised_score_can_be_dropped_in_favour_of_the_pdf(): void
     {
-        $owner = User::factory()->create();
+        $owner = User::factory()->admin()->create();
         $piece = $this->uploadPdf($owner);
         $this->runJob($piece);
         copy(base_path('tests/fixtures/edge-cases.musicxml'), $this->spool.'/out/'.$piece->id.'.mxl');
@@ -294,22 +294,22 @@ class PdfScoreTest extends TestCase
     #[Test]
     public function a_failed_recognition_can_fall_back_to_the_pdf_but_only_the_owner_and_only_then(): void
     {
-        $owner = User::factory()->create();
-        $piece = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'failed', 'musicxml_path' => null, 'source_pdf_path' => 'pieces/1/a.pdf']);
+        $owner = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'failed', 'musicxml_path' => null, 'source_pdf_path' => 'pieces/1/a.pdf']);
 
         $this->actingAs(User::factory()->create())->post(route('pieces.use-pdf', $piece))->assertForbidden();
         $this->actingAs($owner)->post(route('pieces.use-pdf', $piece))->assertRedirect();
         $this->assertSame('pdf_only', $piece->fresh()->parse_status);
 
-        $ready = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'ready', 'source_pdf_path' => 'pieces/1/b.pdf']);
+        $ready = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'ready', 'source_pdf_path' => 'pieces/1/b.pdf']);
         $this->actingAs($owner)->post(route('pieces.use-pdf', $ready))->assertStatus(409);
     }
 
     #[Test]
     public function adding_musicxml_to_a_pdf_only_piece_makes_it_fully_playable_and_keeps_the_pdf(): void
     {
-        $owner = User::factory()->create();
-        $piece = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'pdf_only', 'musicxml_path' => null, 'source_pdf_path' => 'pieces/1/a.pdf']);
+        $owner = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'pdf_only', 'musicxml_path' => null, 'source_pdf_path' => 'pieces/1/a.pdf']);
         Storage::disk('local')->put('pieces/1/a.pdf', "%PDF-1.7\n");
 
         $this->actingAs($owner)->put(route('pieces.update', $piece), [
@@ -327,10 +327,10 @@ class PdfScoreTest extends TestCase
     public function replacing_the_pdf_of_a_piece_with_musicxml_does_not_start_recognition(): void
     {
         Queue::fake();
-        $owner = User::factory()->create();
+        $owner = User::factory()->admin()->create();
         Storage::disk('local')->put('pieces/1/old.pdf', "%PDF-1.7\n");
         Storage::disk('local')->put('pieces/1/a.musicxml', 'x');
-        $piece = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'ready', 'musicxml_path' => 'pieces/1/a.musicxml', 'source_pdf_path' => 'pieces/1/old.pdf']);
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'ready', 'musicxml_path' => 'pieces/1/a.musicxml', 'source_pdf_path' => 'pieces/1/old.pdf']);
 
         $this->actingAs($owner)->put(route('pieces.update', $piece), [
             'title' => 'T', 'instrument' => 'violin', 'default_bpm' => 70, 'pdf' => $this->pdf('new.pdf'),
@@ -348,8 +348,8 @@ class PdfScoreTest extends TestCase
     public function a_new_pdf_for_a_pdf_only_piece_is_recognised_again(): void
     {
         Queue::fake();
-        $owner = User::factory()->create();
-        $piece = Piece::factory()->for($owner, 'owner')->create(['parse_status' => 'pdf_only', 'musicxml_path' => null, 'source_pdf_path' => 'pieces/1/a.pdf']);
+        $owner = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($owner, 'owner')->inOrganization()->create(['parse_status' => 'pdf_only', 'musicxml_path' => null, 'source_pdf_path' => 'pieces/1/a.pdf']);
 
         $this->actingAs($owner)->put(route('pieces.update', $piece), [
             'title' => 'T', 'instrument' => 'violin', 'default_bpm' => 70, 'score' => $this->pdf('better.pdf'),
