@@ -14,15 +14,7 @@
 		-Server
 	}
 
-	# The plain-PHP API, same origin as the site, so no CORS is involved.
-	handle /api/v1/* {
-		root * /var/www/html/api/public
-		php_fastcgi app:9000 {
-			try_files /index.php
-		}
-	}
-
-	# The Laravel site. Static files (public/build, favicon) are served by Caddy itself.
+	# Laravel: the site and the practice API under /api/v1. Static files (public/build, favicon) are served by Caddy itself.
 	handle {
 		root * /var/www/html/public
 		php_fastcgi app:9000

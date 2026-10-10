@@ -9,21 +9,14 @@ use Database\Seeders\CatalogueSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
-use PracticeApi\App;
-use PracticeApi\Http\Request;
-use PracticeApi\Http\Response;
 use Tests\TestCase;
 
-/**
- * Drives the plain-PHP API in-process, on the same database connection Laravel uses,
- * with tokens issued by Laravel Sanctum — exactly the two-systems-one-database setup.
- */
+/** The player's API, called with the same short-lived Sanctum token the player page hands to the browser. */
 class PracticeApiTest extends TestCase
 {
     use RefreshDatabase;
-
-    private App $app_;
 
     private User $user;
 
@@ -36,28 +29,24 @@ class PracticeApiTest extends TestCase
         parent::setUp();
         Storage::fake('local');
         $this->seed(CatalogueSeeder::class);
-        $this->app_ = new App(DB::connection()->getPdo(), ['http://localhost:8000'], debug: true);
         $this->user = User::factory()->create();
         $this->token = app(PlayerTokenService::class)->issue($this->user);
         $this->piece = Piece::where('title', 'Open Strings and A Major Arpeggio')->sole(); // G3 D4 A4 E5 …
     }
 
-    private function api(string $method, string $path, ?array $body = null, ?string $token = null, array $headers = []): Response
+    private function api(string $method, string $path, array $body = [], ?string $token = null): TestResponse
     {
-        $headers = array_change_key_case($headers) + [
-            'authorization' => 'Bearer '.($token ?? $this->token),
-            'content-type' => 'application/json',
-        ];
+        // Guards remember the user between requests in one test; each call must authenticate on its own.
+        $this->app['auth']->forgetGuards();
 
-        return $this->app_->handle(new Request($method, '/api/v1'.$path, $headers, $body === null ? '' : json_encode($body)));
+        return $this->withToken($token ?? $this->token)->json($method, '/api/v1'.$path, $body);
     }
 
     private function startRun(array $overrides = []): int
     {
-        $r = $this->api('POST', '/sessions', $overrides + ['piece_id' => $this->piece->id, 'bpm' => 60]);
-        $this->assertSame(201, $r->status, $r->body());
-
-        return $r->data['id'];
+        return $this->api('POST', '/sessions', $overrides + ['piece_id' => $this->piece->id, 'bpm' => 60])
+            ->assertCreated()
+            ->json('id');
     }
 
     private function heard(int $index, ?float $hz, ?float $clarity = 0.97): array
@@ -70,25 +59,27 @@ class PracticeApiTest extends TestCase
     #[Test]
     public function it_serves_the_expected_notes_of_a_piece(): void
     {
-        $r = $this->api('GET', '/pieces/'.$this->piece->id);
-
-        $this->assertSame(200, $r->status);
-        $this->assertSame(17, $r->data['note_count']);
-        $this->assertSame(['note_index' => 0, 'measure' => 1, 'midi_pitch' => 55, 'onset_beats' => 0.0, 'duration_beats' => 2.0], $r->data['notes'][0]);
+        $this->api('GET', '/pieces/'.$this->piece->id)
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'max-age=60, private')
+            ->assertJsonPath('note_count', 17)
+            ->assertJsonPath('notes.0', ['note_index' => 0, 'measure' => 1, 'midi_pitch' => 55, 'onset_beats' => 0, 'duration_beats' => 2]);
     }
 
     #[Test]
     public function it_rejects_missing_wrong_expired_and_under_scoped_tokens(): void
     {
-        $this->assertSame(401, $this->api('GET', '/pieces/1', token: '')->status);
+        $this->api('GET', '/pieces/'.$this->piece->id, token: '')->assertUnauthorized();
         [$id] = explode('|', $this->token);
-        $this->assertSame(401, $this->api('GET', '/pieces/1', token: $id.'|wrong-secret')->status);
+        $this->api('GET', '/pieces/'.$this->piece->id, token: $id.'|wrong-secret')->assertUnauthorized();
 
         $expired = $this->user->createToken('player', ['practice:write'], now()->subMinute())->plainTextToken;
-        $this->assertSame('token_expired', $this->api('GET', '/pieces/1', token: $expired)->data['error']['code']);
+        $this->api('GET', '/pieces/'.$this->piece->id, token: $expired)
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'The player token is missing or has expired. Reload the page.');
 
         $readOnly = $this->user->createToken('other', ['profile:read'])->plainTextToken;
-        $this->assertSame(403, $this->api('GET', '/pieces/1', token: $readOnly)->status);
+        $this->api('GET', '/pieces/'.$this->piece->id, token: $readOnly)->assertForbidden();
     }
 
     #[Test]
@@ -96,8 +87,18 @@ class PracticeApiTest extends TestCase
     {
         $private = Piece::factory()->for(User::factory(), 'owner')->create(['parse_status' => 'ready']);
 
-        $this->assertSame(404, $this->api('GET', '/pieces/'.$private->id)->status);
-        $this->assertSame(404, $this->api('POST', '/sessions', ['piece_id' => $private->id, 'bpm' => 60])->status);
+        $this->api('GET', '/pieces/'.$private->id)->assertForbidden();
+        $this->api('POST', '/sessions', ['piece_id' => $private->id, 'bpm' => 60])->assertForbidden();
+        $this->assertSame(0, DB::table('practice_sessions')->count());
+    }
+
+    #[Test]
+    public function a_piece_that_is_not_analysed_yet_cannot_be_played(): void
+    {
+        $pending = Piece::factory()->for($this->user, 'owner')->create(['parse_status' => 'pending']);
+
+        $this->api('GET', '/pieces/'.$pending->id)->assertForbidden();
+        $this->api('GET', '/pieces/999999')->assertNotFound();
     }
 
     #[Test]
@@ -109,19 +110,18 @@ class PracticeApiTest extends TestCase
         $r = $this->api('POST', "/sessions/$id/results", ['results' => [
             $this->heard(0, 196.0),
             $this->heard(1, 293.66 * 2 ** (40 / 1200)),
-        ]]);
-        $this->assertSame(201, $r->status, $r->body());
-        $this->assertSame(['in_tune', 'sharp'], array_column($r->data['results'], 'outcome'));
-        $this->assertFalse($r->data['finished']);
+        ]])->assertCreated();
+        $this->assertSame(['in_tune', 'sharp'], array_column($r->json('results'), 'outcome'));
+        $this->assertFalse($r->json('finished'));
 
         // last batch: A4 is played as B-flat, E5 is silent, then finish
         $r = $this->api('POST', "/sessions/$id/results", ['finished' => true, 'results' => [
             $this->heard(2, 466.16),
             $this->heard(3, null, null),
-        ]]);
-        $this->assertSame(['wrong_note', 'missed'], array_column($r->data['results'], 'outcome'));
-        $this->assertSame(25.0, $r->data['score_pct']);
-        $this->assertSame(['in_tune' => 1, 'sharp' => 1, 'flat' => 0, 'wrong_note' => 1, 'missed' => 1], $r->data['counts']);
+        ]])->assertCreated();
+        $this->assertSame(['wrong_note', 'missed'], array_column($r->json('results'), 'outcome'));
+        $this->assertEquals(25.0, $r->json('score_pct'));
+        $this->assertSame(['in_tune' => 1, 'sharp' => 1, 'flat' => 0, 'wrong_note' => 1, 'missed' => 1], $r->json('counts'));
 
         $session = DB::table('practice_sessions')->find($id);
         $this->assertNotNull($session->finished_at);
@@ -138,10 +138,9 @@ class PracticeApiTest extends TestCase
         $id = $this->startRun(['tolerance_mode' => 'hz', 'tolerance_value' => 30]);
 
         // G3 (196 Hz) played as A3 (220 Hz): 24 Hz off, so "in tune" under ±30 Hz — documented trade-off.
-        $r = $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(0, 220.0)], 'finished' => true]);
-
-        $this->assertSame('in_tune', $r->data['results'][0]['outcome']);
-        $this->assertSame(200.0, $r->data['results'][0]['cents']);
+        $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(0, 220.0)], 'finished' => true])
+            ->assertJsonPath('results.0.outcome', 'in_tune')
+            ->assertJsonPath('results.0.cents', 200);
     }
 
     #[Test]
@@ -150,10 +149,9 @@ class PracticeApiTest extends TestCase
         $id = $this->startRun();
         $fake = ['note_index' => 0, 'expected_midi' => 69, 'detected_hz' => 440.0, 'clarity' => 0.99, 'outcome' => 'in_tune'];
 
-        $r = $this->api('POST', "/sessions/$id/results", ['results' => [$fake]]);
-
-        $this->assertSame(422, $r->status);
-        $this->assertArrayHasKey('results.0.expected_midi', $r->data['error']['details']);
+        $this->api('POST', "/sessions/$id/results", ['results' => [$fake]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('results.0.expected_midi');
         $this->assertSame(0, DB::table('note_results')->count());
     }
 
@@ -169,9 +167,18 @@ class PracticeApiTest extends TestCase
             $this->heard(0, 196.0),
         ]]);
 
-        $this->assertSame(422, $r->status);
-        $this->assertSame(['results.1.detected_hz', 'results.2.note_index', 'results.3.note_index'], array_keys($r->data['error']['details']));
+        $r->assertUnprocessable();
+        $this->assertEqualsCanonicalizing(['results.1.detected_hz', 'results.2.note_index', 'results.3.note_index'], array_keys($r->json('errors')));
         $this->assertSame(0, DB::table('note_results')->count());
+    }
+
+    #[Test]
+    public function an_empty_batch_is_only_accepted_to_finish_a_run(): void
+    {
+        $id = $this->startRun();
+
+        $this->api('POST', "/sessions/$id/results", ['results' => []])->assertJsonValidationErrors('results');
+        $this->api('POST', "/sessions/$id/results", ['results' => [], 'finished' => true])->assertCreated();
     }
 
     #[Test]
@@ -180,46 +187,37 @@ class PracticeApiTest extends TestCase
         $id = $this->startRun();
         $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(0, 196.0)]]);
 
-        $this->assertSame('duplicate', $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(0, 196.0)]])->data['error']['code']);
+        $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(0, 196.0), $this->heard(1, 293.7)]])->assertConflict();
+        $this->assertSame(1, DB::table('note_results')->where('session_id', $id)->count());
 
         $this->api('POST', "/sessions/$id/results", ['results' => [], 'finished' => true]);
-        $this->assertSame('already_finished', $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(1, 293.7)]])->data['error']['code']);
+        $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(1, 293.7)]])
+            ->assertConflict()
+            ->assertJsonPath('message', 'This run is already finished.');
     }
 
     #[Test]
-    public function another_users_session_is_not_found(): void
+    public function another_users_session_is_off_limits(): void
     {
         $id = $this->startRun();
         $intruder = app(PlayerTokenService::class)->issue(User::factory()->create());
 
-        $r = $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(0, 196.0)]], $intruder);
-
-        $this->assertSame(404, $r->status);
+        $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(0, 196.0)]], $intruder)->assertForbidden();
+        $this->assertSame(0, DB::table('note_results')->count());
     }
 
     #[Test]
     public function session_settings_are_validated(): void
     {
-        $r = $this->api('POST', '/sessions', ['piece_id' => $this->piece->id, 'bpm' => 5, 'tolerance_mode' => 'semitones', 'tolerance_value' => 500, 'reference_hz' => 300]);
-
-        $this->assertSame(422, $r->status);
-        $this->assertEqualsCanonicalizing(['bpm', 'tolerance_mode', 'tolerance_value', 'reference_hz'], array_keys($r->data['error']['details']));
+        $this->api('POST', '/sessions', ['piece_id' => $this->piece->id, 'bpm' => 5, 'tolerance_mode' => 'semitones', 'tolerance_value' => 500, 'reference_hz' => 300])
+            ->assertUnprocessable()
+            ->assertOnlyJsonValidationErrors(['bpm', 'tolerance_mode', 'tolerance_value', 'reference_hz']);
     }
 
     #[Test]
-    public function http_details_bad_json_wrong_method_unknown_route_and_cors(): void
+    public function numbers_sent_as_strings_are_refused(): void
     {
-        $bad = $this->app_->handle(new Request('POST', '/api/v1/sessions', ['authorization' => 'Bearer '.$this->token, 'content-type' => 'application/json'], '{nope'));
-        $this->assertSame(400, $bad->status);
-        $this->assertSame(405, $this->api('GET', '/sessions')->status);
-        $this->assertSame(415, $this->api('POST', '/sessions', ['bpm' => 60], headers: ['content-type' => 'text/plain'])->status);
-        $this->assertSame(404, $this->api('GET', '/nothing')->status);
-
-        $preflight = $this->app_->handle(new Request('OPTIONS', '/api/v1/sessions', ['origin' => 'http://localhost:8000']));
-        $this->assertSame(204, $preflight->status);
-        $this->assertSame('http://localhost:8000', $preflight->headers['Access-Control-Allow-Origin']);
-
-        $foreign = $this->app_->handle(new Request('OPTIONS', '/api/v1/sessions', ['origin' => 'https://evil.example']));
-        $this->assertArrayNotHasKey('Access-Control-Allow-Origin', $foreign->headers);
+        $this->api('POST', '/sessions', ['piece_id' => (string) $this->piece->id, 'bpm' => '60'])
+            ->assertOnlyJsonValidationErrors(['piece_id', 'bpm']);
     }
 }

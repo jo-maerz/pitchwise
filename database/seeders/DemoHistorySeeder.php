@@ -6,9 +6,9 @@ use App\Models\Piece;
 use App\Models\PracticeSession;
 use App\Models\User;
 use App\Services\PitchStatsAggregator;
+use App\Support\PitchRule;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use PracticeApi\PitchRule;
 
 /**
  * Fake but plausible practice history for the demo user, so the dashboard has something to show.

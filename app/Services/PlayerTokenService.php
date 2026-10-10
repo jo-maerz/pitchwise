@@ -5,8 +5,7 @@ namespace App\Services;
 use App\Models\User;
 
 /**
- * Issues the short-lived Sanctum token the player page uses to call the plain-PHP API.
- * The API validates it by reading personal_access_tokens directly (see api/src/TokenGuard.php).
+ * Issues the short-lived Sanctum token the player page uses to call the practice API (routes/api.php).
  */
 class PlayerTokenService
 {

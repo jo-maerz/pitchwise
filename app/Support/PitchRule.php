@@ -1,8 +1,6 @@
 <?php
 
-declare(strict_types=1);
-
-namespace PracticeApi;
+namespace App\Support;
 
 /**
  * The pitch rule. Mirrors resources/js/practice/pitch-math.js; both are checked against
