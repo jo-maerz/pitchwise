@@ -46,10 +46,10 @@ test('median and frame summary drop unclear frames and resist an octave jump', (
 
 test('report: score, pages and weakest bars', () => {
     const r = summarize([
-        { verdict: 'in_tune', measure: 1, page: 1, cents: 4 },
-        { verdict: 'sharp', measure: 1, page: 1, cents: 45 },
-        { verdict: 'in_tune', measure: 2, page: 2, cents: -10 },
-        { verdict: 'missed', measure: 3, page: 2, cents: null },
+        { outcome: 'in_tune', measure: 1, page: 1, cents: 4 },
+        { outcome: 'sharp', measure: 1, page: 1, cents: 45 },
+        { outcome: 'in_tune', measure: 2, page: 2, cents: -10 },
+        { outcome: 'missed', measure: 3, page: 2, cents: null },
     ]);
     assert.equal(r.score, 50);
     assert.equal(r.counts.sharp, 1);

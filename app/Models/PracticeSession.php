@@ -45,7 +45,6 @@ class PracticeSession extends Model
         return $this->hasMany(NoteResult::class, 'session_id')->orderBy('note_index');
     }
 
-    /** "±30 cents" or "±30 Hz", for display. */
     public function toleranceLabel(): string
     {
         $value = rtrim(rtrim(number_format($this->tolerance_value, 2, '.', ''), '0'), '.');

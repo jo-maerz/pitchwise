@@ -18,7 +18,6 @@ class PiecePolicy
         return $this->view($user, $piece) && $piece->isReady();
     }
 
-    /** The PDF page: the original sheet music with a live tuner, for pieces that have a PDF. */
     public function playPdf(User $user, Piece $piece): bool
     {
         return $this->view($user, $piece) && $piece->hasPdf();

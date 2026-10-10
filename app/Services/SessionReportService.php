@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\PracticeSession;
 use App\Support\Pitch;
 
-/** Builds the end-of-run report shown on the session page. */
 class SessionReportService
 {
     public function build(PracticeSession $session): array
@@ -19,17 +18,17 @@ class SessionReportService
         $notes = [];
 
         foreach ($session->results as $r) {
-            $counts[$r->verdict]++;
+            $counts[$r->outcome]++;
             $measure = (int) ($measures[$r->note_index] ?? 0);
             $byMeasure[$measure] ??= ['measure' => $measure, 'notes' => 0, 'in_tune' => 0];
             $byMeasure[$measure]['notes']++;
-            $byMeasure[$measure]['in_tune'] += $r->verdict === 'in_tune' ? 1 : 0;
+            $byMeasure[$measure]['in_tune'] += $r->outcome === 'in_tune' ? 1 : 0;
 
             $p = &$byPitch[$r->expected_midi];
             $p ??= ['attempts' => 0, 'in_tune' => 0, 'cents' => []];
             $p['attempts']++;
-            $p['in_tune'] += $r->verdict === 'in_tune' ? 1 : 0;
-            if (in_array($r->verdict, ['in_tune', 'sharp', 'flat'], true) && $r->cents_offset !== null) {
+            $p['in_tune'] += $r->outcome === 'in_tune' ? 1 : 0;
+            if (in_array($r->outcome, ['in_tune', 'sharp', 'flat'], true) && $r->cents_offset !== null) {
                 $p['cents'][] = $r->cents_offset;
             }
             unset($p);
@@ -41,12 +40,12 @@ class SessionReportService
                 'detected' => $r->detected_midi !== null ? Pitch::name($r->detected_midi) : null,
                 'hz' => $r->detected_hz,
                 'cents' => $r->cents_offset,
-                'verdict' => $r->verdict,
+                'outcome' => $r->outcome,
             ];
         }
 
         ksort($byPitch);
-        $pitches = collect($byPitch)->map(fn ($p, $midi) => Pitch::chartRow(
+        $pitches = collect($byPitch)->map(fn ($p, $midi) => Pitch::intonationByNoteBar(
             (int) $midi,
             $p['attempts'],
             $p['in_tune'],
@@ -67,7 +66,7 @@ class SessionReportService
             ->all();
 
         $total = array_sum($counts);
-        $pitched = $session->results->whereIn('verdict', ['in_tune', 'sharp', 'flat'])->whereNotNull('cents_offset');
+        $pitched = $session->results->whereIn('outcome', ['in_tune', 'sharp', 'flat'])->whereNotNull('cents_offset');
 
         return [
             'score' => $session->score_pct,

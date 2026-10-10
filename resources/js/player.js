@@ -2,8 +2,8 @@ import { openMicrophone } from './practice/audio.js';
 import { PracticeApi, ApiError } from './practice/api-client.js';
 import { Gauge } from './practice/gauge.js';
 import {
-    IN_TUNE, MIN_CLARITY, VERDICTS, VERDICT_LABELS,
-    expectedHz, judge, noteName, toleranceBandCents,
+    IN_TUNE, MIN_CLARITY, OUTCOMES, OUTCOME_LABELS,
+    expectedHz, classifyNote, noteName, toleranceBandCents,
 } from './practice/pitch-math.js';
 import { summarize } from './practice/report.js';
 import { ScoreView } from './practice/score-view.js';
@@ -12,7 +12,7 @@ import { buildTimeline, eventAt, median, summarizeFrames } from './practice/time
 import { WaitFollower } from './practice/wait-mode.js';
 
 /*
- * The practice player: score + live tuner + note-by-note verdicts.
+ * The practice player: score + live tuner + note-by-note outcomes.
  *
  * One audio clock drives everything. The run starts at t0 on the AudioContext clock;
  * the count-in clicks, the cursor, and every pitch frame are measured from t0, so the
@@ -20,7 +20,7 @@ import { WaitFollower } from './practice/wait-mode.js';
  */
 
 const $ = (sel) => document.querySelector(sel);
-const LEAD_MS = 200; // small gap between pressing Start and the first click
+const LEAD_MS = 200;
 
 class Player {
     constructor(config) {
@@ -239,7 +239,6 @@ class Player {
         requestAnimationFrame(this.waitLoop);
     };
 
-    /** Judge the note the player just held (or skipped), then move the cursor to the next one. */
     completeWaitNote({ index, frames }) {
         this.buffers[index] = frames;
         this.listenPos = index + 1;
@@ -340,8 +339,8 @@ class Player {
         }
         const s = this.settings;
         const hz = median(this.recent);
-        const j = judge(event.midi, hz, null, s.toleranceMode, s.toleranceValue, s.referenceHz);
-        this.gauge.show({ hz, cents: j.cents, verdict: j.verdict, detectedMidi: j.detectedMidi });
+        const j = classifyNote(event.midi, hz, null, s.toleranceMode, s.toleranceValue, s.referenceHz);
+        this.gauge.show({ hz, cents: j.cents, outcome: j.outcome, detectedMidi: j.detectedMidi });
     }
 
     showTarget(midi) {
@@ -359,21 +358,21 @@ class Player {
         const event = this.timeline.events[i];
         const heard = summarizeFrames(this.buffers[i], MIN_CLARITY);
         this.buffers[i] = null;
-        const j = judge(event.midi, heard.hz, heard.clarity, s.toleranceMode, s.toleranceValue, s.referenceHz);
+        const j = classifyNote(event.midi, heard.hz, heard.clarity, s.toleranceMode, s.toleranceValue, s.referenceHz);
         const page = this.score.pageOf(event.index);
         const result = {
             note_index: event.index,
             expected_midi: event.midi,
             detected_hz: heard.hz,
             clarity: heard.clarity,
-            verdict: j.verdict,
+            outcome: j.outcome,
             cents: j.cents,
             measure: event.measure,
             page,
         };
         this.results.push(result);
         this.pending.push(result);
-        this.score.colour(event.index, j.verdict);
+        this.score.colour(event.index, j.outcome);
         this.updateTally();
 
         const next = this.timeline.events[i + 1];
@@ -383,7 +382,6 @@ class Player {
         }
     }
 
-    /** Send what is pending, in order. Batches are sent per page and at the end. */
     flush(finished) {
         const batch = this.pending.map(({ note_index, expected_midi, detected_hz, clarity }) => ({ note_index, expected_midi, detected_hz, clarity }));
         this.pending = [];
@@ -394,11 +392,11 @@ class Player {
             .then((res) => {
                 for (const r of res?.results ?? []) {
                     const local = this.results.find((x) => x.note_index === r.note_index);
-                    if (local && local.verdict !== r.verdict) {
-                        // The server's verdict is the stored one; show that.
-                        local.verdict = r.verdict;
+                    if (local && local.outcome !== r.outcome) {
+                        // The server's outcome is the stored one; show that.
+                        local.outcome = r.outcome;
                         local.cents = r.cents;
-                        this.score.colour(r.note_index, r.verdict);
+                        this.score.colour(r.note_index, r.outcome);
                     }
                 }
                 return res;
@@ -458,9 +456,9 @@ class Player {
     }
 
     updateTally() {
-        const counts = Object.fromEntries(VERDICTS.map((v) => [v, 0]));
-        for (const r of this.results) counts[r.verdict]++;
-        for (const v of VERDICTS) {
+        const counts = Object.fromEntries(OUTCOMES.map((v) => [v, 0]));
+        for (const r of this.results) counts[r.outcome]++;
+        for (const v of OUTCOMES) {
             const el = document.querySelector(`[data-tally="${v}"]`);
             if (el) el.textContent = counts[v];
         }
@@ -493,8 +491,8 @@ class Player {
             + (s.avgCents !== null ? ` · average offset ${s.avgCents > 0 ? '+' : ''}${s.avgCents} cents` : '')
             + ` · rule ±${this.settings.toleranceValue} ${this.settings.toleranceMode === 'hz' ? 'Hz' : 'cents'}`;
 
-        panel.querySelector('[data-report-counts]').innerHTML = VERDICTS.map((v) =>
-            `<li class="pi-chip" data-verdict="${v}"><span class="pi-dot"></span>${VERDICT_LABELS[v]} <strong>${s.counts[v]}</strong></li>`).join('');
+        panel.querySelector('[data-report-counts]').innerHTML = OUTCOMES.map((v) =>
+            `<li class="pi-chip" data-outcome="${v}"><span class="pi-dot"></span>${OUTCOME_LABELS[v]} <strong>${s.counts[v]}</strong></li>`).join('');
 
         panel.querySelector('[data-report-pages]').innerHTML = s.pages.length > 1
             ? `<h4>By page</h4><table class="pi-table"><thead><tr><th>Page</th><th>Notes</th><th>In tune</th></tr></thead><tbody>${
@@ -505,11 +503,11 @@ class Player {
             ? `<h4>Bars to practise</h4><ol>${s.weakest.map((m) => `<li>Bar ${m.measure}: ${m.inTune} of ${m.notes} in tune</li>`).join('')}</ol>`
             : '<h4>Bars to practise</h4><p>None. Every bar was in tune.</p>';
 
-        const offTune = this.results.filter((r) => r.verdict === 'sharp' || r.verdict === 'flat')
+        const offTune = this.results.filter((r) => r.outcome === 'sharp' || r.outcome === 'flat')
             .sort((a, b) => Math.abs(b.cents) - Math.abs(a.cents)).slice(0, 5);
         panel.querySelector('[data-report-notes]').innerHTML = offTune.length
             ? `<h4>Furthest off</h4><ul>${offTune.map((r) =>
-                `<li>Bar ${r.measure}, ${esc(noteName(r.expected_midi))}: ${r.cents > 0 ? '+' : '−'}${Math.abs(Math.round(r.cents))} cents (${r.verdict === 'sharp' ? 'too high' : 'too low'})</li>`).join('')}</ul>`
+                `<li>Bar ${r.measure}, ${esc(noteName(r.expected_midi))}: ${r.cents > 0 ? '+' : '−'}${Math.abs(Math.round(r.cents))} cents (${r.outcome === 'sharp' ? 'too high' : 'too low'})</li>`).join('')}</ul>`
             : '';
 
         const link = panel.querySelector('[data-report-link]');

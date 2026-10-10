@@ -47,7 +47,6 @@ export async function openMicrophone({ noiseGateDb = -30 } = {}) {
         setNoiseGate(db) {
             detector.minVolumeDecibels = db;
         },
-        /** A short click, scheduled precisely on the audio clock. */
         click(atMs, accent = false) {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();

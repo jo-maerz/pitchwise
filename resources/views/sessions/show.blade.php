@@ -36,8 +36,8 @@
                     </div>
                 </div>
                 <ul class="flex flex-wrap gap-2">
-                    @foreach ($report['counts'] as $verdict => $n)
-                        <li class="pi-chip" data-verdict="{{ $verdict }}"><span class="pi-dot"></span>{{ $labels[$verdict] }} <strong>{{ $n }}</strong></li>
+                    @foreach ($report['counts'] as $outcome => $n)
+                        <li class="pi-chip" data-outcome="{{ $outcome }}"><span class="pi-dot"></span>{{ $labels[$outcome] }} <strong>{{ $n }}</strong></li>
                     @endforeach
                 </ul>
                 @can('play', $session->piece)
@@ -53,8 +53,8 @@
                     </label>
                 </div>
                 <ul class="flex flex-wrap gap-3 px-2 py-2 text-xs text-gray-600" aria-label="Note colours">
-                    @foreach ($labels as $verdict => $label)
-                        <li data-verdict="{{ $verdict }}"><span class="pi-dot"></span>{{ strtolower($label) }}</li>
+                    @foreach ($labels as $outcome => $label)
+                        <li data-outcome="{{ $outcome }}"><span class="pi-dot"></span>{{ strtolower($label) }}</li>
                     @endforeach
                     <li class="text-gray-400">Numbers: + sharp, − flat. Click a note for details.</li>
                 </ul>
@@ -62,7 +62,7 @@
                 <div id="note-detail" class="mx-2 mb-3 rounded-md border border-gray-200 bg-gray-50 p-3 text-sm" hidden>
                     <div class="flex flex-wrap items-baseline justify-between gap-2">
                         <strong data-detail-title></strong>
-                        <span class="inline-flex items-center"><span class="pi-dot"></span><span data-detail-verdict></span></span>
+                        <span class="inline-flex items-center"><span class="pi-dot"></span><span data-detail-outcome></span></span>
                     </div>
                     <div class="text-gray-600" data-detail-text></div>
                     <div class="mt-3 pi-ruler" aria-hidden="true"><span class="pi-ruler-marker" data-detail-marker></span></div>
@@ -101,10 +101,10 @@
                                     <div class="text-gray-500">Click to show in the score</div>
                                     <ul class="mt-1 space-y-0.5">
                                         @foreach ($notesByBar->get($m['measure'], []) as $n)
-                                            <li class="flex items-center" data-verdict="{{ $n['verdict'] }}">
+                                            <li class="flex items-center" data-outcome="{{ $n['outcome'] }}">
                                                 <span class="pi-dot"></span>
                                                 <span class="font-medium">{{ $n['expected'] }}</span>
-                                                <span class="text-gray-600">{{ $labels[$n['verdict']] }}@if ($n['cents'] !== null && $n['verdict'] !== 'missed') ({{ Pitch::cents($n['cents']) }})@endif</span>
+                                                <span class="text-gray-600">{{ $labels[$n['outcome']] }}@if ($n['cents'] !== null && $n['outcome'] !== 'missed') ({{ Pitch::cents($n['cents']) }})@endif</span>
                                             </li>
                                         @endforeach
                                     </ul>
@@ -128,7 +128,7 @@
                                     <td>{{ $n['expected'] }}</td>
                                     <td>{{ $n['hz'] ? $n['detected'].' · '.number_format($n['hz'], 1).' Hz' : '–' }}</td>
                                     <td>{{ Pitch::cents($n['cents']) }}</td>
-                                    <td data-verdict="{{ $n['verdict'] }}"><span class="pi-dot"></span>{{ $labels[$n['verdict']] }}</td>
+                                    <td data-outcome="{{ $n['outcome'] }}"><span class="pi-dot"></span>{{ $labels[$n['outcome']] }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\DB;
  * Bulk data for the EXPLAIN exercise: about a million note_results.
  *   php artisan db:seed --class=LoadTestSeeder
  *   LOADTEST_SESSIONS=5000 php artisan db:seed --class=LoadTestSeeder   (smaller)
- * Run on MySQL; SQLite works but is slow at this size.
  */
 class LoadTestSeeder extends Seeder
 {
@@ -26,12 +25,12 @@ class LoadTestSeeder extends Seeder
             return;
         }
 
-        $verdicts = ['in_tune', 'in_tune', 'in_tune', 'sharp', 'flat', 'wrong_note', 'missed'];
+        $outcomes = ['in_tune', 'in_tune', 'in_tune', 'sharp', 'flat', 'wrong_note', 'missed'];
         $bar = $this->command?->getOutput()->createProgressBar($sessionsWanted);
         $now = now();
 
         for ($done = 0; $done < $sessionsWanted; $done += 100) {
-            DB::transaction(function () use ($users, $pieces, $verdicts, $now) {
+            DB::transaction(function () use ($users, $pieces, $outcomes, $now) {
                 for ($i = 0; $i < 100; $i++) {
                     $piece = $pieces->random();
                     $finished = $now->copy()->subMinutes(mt_rand(1, 60 * 24 * 365));
@@ -51,7 +50,7 @@ class LoadTestSeeder extends Seeder
                     ]);
                     $rows = [];
                     foreach ($piece->notes as $n) {
-                        $v = $verdicts[array_rand($verdicts)];
+                        $v = $outcomes[array_rand($outcomes)];
                         $cents = match ($v) {
                             'in_tune' => mt_rand(-30, 30), 'sharp' => mt_rand(31, 50),
                             'flat' => mt_rand(-50, -31), 'wrong_note' => mt_rand(60, 300), default => null,
@@ -61,7 +60,7 @@ class LoadTestSeeder extends Seeder
                             'expected_midi' => $n->midi_pitch,
                             'detected_midi' => $cents === null ? null : $n->midi_pitch + (int) round($cents / 100),
                             'detected_hz' => $cents === null ? null : round(440 * 2 ** (($n->midi_pitch - 69 + $cents / 100) / 12), 2),
-                            'cents_offset' => $cents, 'verdict' => $v, 'clarity' => $cents === null ? null : 0.95,
+                            'cents_offset' => $cents, 'outcome' => $v, 'clarity' => $cents === null ? null : 0.95,
                         ];
                     }
                     DB::table('note_results')->insert($rows);

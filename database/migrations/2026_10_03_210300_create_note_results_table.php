@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedTinyInteger('detected_midi')->nullable();
             $table->decimal('detected_hz', 8, 2)->nullable();
             $table->decimal('cents_offset', 7, 2)->nullable();
-            $table->enum('verdict', ['in_tune', 'sharp', 'flat', 'wrong_note', 'missed']);
+            $table->enum('outcome', ['in_tune', 'sharp', 'flat', 'wrong_note', 'missed']);
             $table->decimal('clarity', 4, 3)->nullable();
 
             $table->unique(['session_id', 'note_index']);

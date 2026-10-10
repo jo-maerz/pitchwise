@@ -23,11 +23,11 @@
                         <div id="gauge"></div>
                         <ul class="mt-3 grid grid-cols-3 gap-2 text-center text-xs" aria-label="This run so far">
                             <li class="rounded bg-gray-50 py-1.5"><div class="text-lg font-semibold tabular-nums" data-tally-score>–</div>in tune</li>
-                            <li class="rounded bg-gray-50 py-1.5" data-verdict="sharp"><div class="text-lg font-semibold tabular-nums" data-tally="sharp">0</div><span class="pi-dot"></span>too high</li>
-                            <li class="rounded bg-gray-50 py-1.5" data-verdict="flat"><div class="text-lg font-semibold tabular-nums" data-tally="flat">0</div><span class="pi-dot"></span>too low</li>
-                            <li class="rounded bg-gray-50 py-1.5" data-verdict="in_tune"><div class="text-lg font-semibold tabular-nums" data-tally="in_tune">0</div><span class="pi-dot"></span>notes ok</li>
-                            <li class="rounded bg-gray-50 py-1.5" data-verdict="wrong_note"><div class="text-lg font-semibold tabular-nums" data-tally="wrong_note">0</div><span class="pi-dot"></span>wrong</li>
-                            <li class="rounded bg-gray-50 py-1.5" data-verdict="missed"><div class="text-lg font-semibold tabular-nums" data-tally="missed">0</div><span class="pi-dot"></span>missed</li>
+                            <li class="rounded bg-gray-50 py-1.5" data-outcome="sharp"><div class="text-lg font-semibold tabular-nums" data-tally="sharp">0</div><span class="pi-dot"></span>too high</li>
+                            <li class="rounded bg-gray-50 py-1.5" data-outcome="flat"><div class="text-lg font-semibold tabular-nums" data-tally="flat">0</div><span class="pi-dot"></span>too low</li>
+                            <li class="rounded bg-gray-50 py-1.5" data-outcome="in_tune"><div class="text-lg font-semibold tabular-nums" data-tally="in_tune">0</div><span class="pi-dot"></span>notes ok</li>
+                            <li class="rounded bg-gray-50 py-1.5" data-outcome="wrong_note"><div class="text-lg font-semibold tabular-nums" data-tally="wrong_note">0</div><span class="pi-dot"></span>wrong</li>
+                            <li class="rounded bg-gray-50 py-1.5" data-outcome="missed"><div class="text-lg font-semibold tabular-nums" data-tally="missed">0</div><span class="pi-dot"></span>missed</li>
                         </ul>
                         <div class="mt-4 flex gap-2">
                             <button id="btn-start" type="button" class="flex-1 inline-flex justify-center items-center px-4 py-2.5 bg-gray-800 rounded-md font-semibold text-sm text-white hover:bg-gray-700 disabled:opacity-40" disabled>Start</button>
@@ -113,11 +113,11 @@
 
                     <div class="bg-white shadow-sm sm:rounded-lg p-2">
                         <ul class="flex flex-wrap gap-3 px-2 py-1 text-xs text-gray-600" aria-label="Note colours">
-                            <li data-verdict="in_tune"><span class="pi-dot"></span>in tune</li>
-                            <li data-verdict="sharp"><span class="pi-dot"></span>too high</li>
-                            <li data-verdict="flat"><span class="pi-dot"></span>too low</li>
-                            <li data-verdict="wrong_note"><span class="pi-dot"></span>wrong note</li>
-                            <li data-verdict="missed"><span class="pi-dot"></span>missed</li>
+                            <li data-outcome="in_tune"><span class="pi-dot"></span>in tune</li>
+                            <li data-outcome="sharp"><span class="pi-dot"></span>too high</li>
+                            <li data-outcome="flat"><span class="pi-dot"></span>too low</li>
+                            <li data-outcome="wrong_note"><span class="pi-dot"></span>wrong note</li>
+                            <li data-outcome="missed"><span class="pi-dot"></span>missed</li>
                         </ul>
                         <div id="score" class="pi-score"></div>
                     </div>

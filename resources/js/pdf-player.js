@@ -3,7 +3,7 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { openMicrophone } from './practice/audio.js';
 import { NoteSegmenter } from './practice/free-play.js';
 import { Gauge } from './practice/gauge.js';
-import { MIN_CLARITY, VERDICT_LABELS, expectedHz, judge, nearestMidi, noteName, toleranceBandCents } from './practice/pitch-math.js';
+import { MIN_CLARITY, OUTCOME_LABELS, expectedHz, classifyNote, nearestMidi, noteName, toleranceBandCents } from './practice/pitch-math.js';
 import { SETTING_LIMITS, clamp, loadSettings, saveSettings } from './practice/settings.js';
 import { median } from './practice/timeline.js';
 
@@ -71,14 +71,14 @@ if (configEl) {
             logEl.innerHTML = '';
             return;
         }
-        const inTune = played.filter((n) => n.verdict === 'in_tune').length;
+        const inTune = played.filter((n) => n.outcome === 'in_tune').length;
         const avg = played.reduce((sum, n) => sum + n.cents, 0) / played.length;
         summaryEl.textContent = `${inTune} of ${played.length} in tune · average ${offset(avg)}`;
         logEl.innerHTML = [...played].reverse().map((n) => `
-            <li class="flex items-center justify-between gap-2 border-b border-gray-100 py-1.5" data-verdict="${n.verdict}">
+            <li class="flex items-center justify-between gap-2 border-b border-gray-100 py-1.5" data-outcome="${n.outcome}">
                 <span><span class="pi-dot"></span><strong>${n.name}</strong></span>
                 <span class="tabular-nums">${offset(n.cents)}</span>
-                <span class="w-16 text-right text-gray-600">${VERDICT_LABELS[n.verdict] ?? n.verdict}</span>
+                <span class="w-16 text-right text-gray-600">${OUTCOME_LABELS[n.outcome] ?? n.outcome}</span>
             </li>`).join('');
     };
 
@@ -110,8 +110,8 @@ if (configEl) {
                 target = midi;
                 gauge.setTarget(midi, toleranceBandCents(midi, settings.toleranceMode, settings.toleranceValue, settings.referenceHz), expectedHz(midi, settings.referenceHz));
             }
-            const j = judge(midi, hz, null, settings.toleranceMode, settings.toleranceValue, settings.referenceHz);
-            gauge.show({ hz, cents: j.cents, verdict: j.verdict, detectedMidi: j.detectedMidi });
+            const j = classifyNote(midi, hz, null, settings.toleranceMode, settings.toleranceValue, settings.referenceHz);
+            gauge.show({ hz, cents: j.cents, outcome: j.outcome, detectedMidi: j.detectedMidi });
         } else if (frame.hz === 0) {
             recent = [];
             gauge.show(null);

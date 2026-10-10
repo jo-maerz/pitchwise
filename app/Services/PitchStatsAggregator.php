@@ -42,8 +42,8 @@ class PitchStatsAggregator
             ->groupBy('r.expected_midi')
             ->selectRaw("r.expected_midi as midi_pitch,
                 COUNT(*) as attempts,
-                SUM(CASE WHEN r.verdict = 'in_tune' THEN 1 ELSE 0 END) as in_tune,
-                AVG(CASE WHEN r.verdict IN ('in_tune', 'sharp', 'flat') THEN r.cents_offset END) as avg_cents")
+                SUM(CASE WHEN r.outcome = 'in_tune' THEN 1 ELSE 0 END) as in_tune,
+                AVG(CASE WHEN r.outcome IN ('in_tune', 'sharp', 'flat') THEN r.cents_offset END) as avg_cents")
             ->get();
 
         $now = now();

@@ -19,7 +19,7 @@ $origins = array_filter(array_map(
 ));
 
 try {
-    $pdo = Database::connect($env, $basePath);
+    $pdo = Database::connect($env);
 } catch (Throwable $e) {
     error_log('[practice-api] database connection failed: '.$e->getMessage());
     Response::json(['error' => ['code' => 'unavailable', 'message' => 'Database unavailable.']], 503)->send();

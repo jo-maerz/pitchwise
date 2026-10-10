@@ -1,6 +1,6 @@
 /**
  * The pitch rule, shared by the live display and the end-of-run report.
- * Mirrors api/src/Verdict.php; both are tested against tests/fixtures/verdict-cases.json.
+ * Mirrors api/src/PitchRule.php; both are tested against tests/fixtures/pitch-rule-cases.json.
  *
  *   expected Hz = reference · 2^((midi − 69) / 12)
  *   cents       = 1200 · log2(played / expected)
@@ -16,12 +16,12 @@ export const SHARP = 'sharp';
 export const FLAT = 'flat';
 export const WRONG_NOTE = 'wrong_note';
 export const MISSED = 'missed';
-export const VERDICTS = [IN_TUNE, SHARP, FLAT, WRONG_NOTE, MISSED];
+export const OUTCOMES = [IN_TUNE, SHARP, FLAT, WRONG_NOTE, MISSED];
 
 export const WRONG_NOTE_CENTS = 50;
 export const MIN_CLARITY = 0.9;
 
-export const VERDICT_LABELS = {
+export const OUTCOME_LABELS = {
     [IN_TUNE]: 'In tune',
     [SHARP]: 'Too high',
     [FLAT]: 'Too low',
@@ -53,22 +53,22 @@ function round2(x) {
 }
 
 /**
- * @returns {{verdict: string, cents: number|null, detectedMidi: number|null}}
+ * @returns {{outcome: string, cents: number|null, detectedMidi: number|null}}
  */
-export function judge(expectedMidi, detectedHz, clarity, mode = 'cents', tolerance = 30, referenceHz = 440) {
+export function classifyNote(expectedMidi, detectedHz, clarity, mode = 'cents', tolerance = 30, referenceHz = 440) {
     if (detectedHz == null || !(detectedHz > 0) || (clarity != null && clarity < MIN_CLARITY)) {
-        return { verdict: MISSED, cents: null, detectedMidi: null };
+        return { outcome: MISSED, cents: null, detectedMidi: null };
     }
     const target = expectedHz(expectedMidi, referenceHz);
     const c = cents(detectedHz, target);
     const inTune = mode === 'hz' ? Math.abs(detectedHz - target) <= tolerance : Math.abs(c) <= tolerance;
 
-    let verdict;
-    if (inTune) verdict = IN_TUNE;
-    else if (Math.abs(c) > WRONG_NOTE_CENTS) verdict = WRONG_NOTE;
-    else verdict = c > 0 ? SHARP : FLAT;
+    let outcome;
+    if (inTune) outcome = IN_TUNE;
+    else if (Math.abs(c) > WRONG_NOTE_CENTS) outcome = WRONG_NOTE;
+    else outcome = c > 0 ? SHARP : FLAT;
 
-    return { verdict, cents: round2(c), detectedMidi: nearestMidi(detectedHz, referenceHz) };
+    return { outcome, cents: round2(c), detectedMidi: nearestMidi(detectedHz, referenceHz) };
 }
 
 /**

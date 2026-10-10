@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-/** Small helpers for showing pitches to people. The scoring maths lives in api/src/Verdict.php. */
 final class Pitch
 {
     private const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'B♭', 'B'];
@@ -17,8 +16,7 @@ final class Pitch
         return $referenceHz * 2 ** (($midi - 69) / 12);
     }
 
-    /** One bar of the "intonation by note" chart. */
-    public static function chartRow(int $midi, int $attempts, int $inTune, ?float $avgCents): array
+    public static function intonationByNoteBar(int $midi, int $attempts, int $inTune, ?float $avgCents): array
     {
         return [
             'note' => self::name($midi),
@@ -29,7 +27,6 @@ final class Pitch
         ];
     }
 
-    /** "+18 cents", "−7 cents", "0 cents". */
     public static function cents(?float $cents): string
     {
         if ($cents === null) {

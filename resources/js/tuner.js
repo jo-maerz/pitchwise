@@ -1,6 +1,6 @@
 import { openMicrophone } from './practice/audio.js';
 import { Gauge } from './practice/gauge.js';
-import { MIN_CLARITY, expectedHz, judge, nearestMidi, noteName, toleranceBandCents } from './practice/pitch-math.js';
+import { MIN_CLARITY, expectedHz, classifyNote, nearestMidi, noteName, toleranceBandCents } from './practice/pitch-math.js';
 import { median } from './practice/timeline.js';
 import { loadSettings, saveSettings, clamp, SETTING_LIMITS } from './practice/settings.js';
 
@@ -57,8 +57,8 @@ if (configEl) {
                 gauge.setTarget(midi, toleranceBandCents(midi, settings.toleranceMode, settings.toleranceValue, settings.referenceHz), expectedHz(midi, settings.referenceHz));
                 for (const li of stringsEl.children) li.classList.toggle('is-active', Number(li.dataset.midi) === midi);
             }
-            const j = judge(midi, hz, null, settings.toleranceMode, settings.toleranceValue, settings.referenceHz);
-            gauge.show({ hz, cents: j.cents, verdict: j.verdict, detectedMidi: j.detectedMidi });
+            const j = classifyNote(midi, hz, null, settings.toleranceMode, settings.toleranceValue, settings.referenceHz);
+            gauge.show({ hz, cents: j.cents, outcome: j.outcome, detectedMidi: j.detectedMidi });
         } else if (frame.hz === 0) {
             recent = [];
             gauge.show(null);

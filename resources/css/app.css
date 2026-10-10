@@ -10,7 +10,7 @@
     --pi-text-secondary: #52514e;
     --pi-grid: #e4e3df;
     --pi-series-1: #2a78d6;
-    /* verdict colours: always shown with a word or arrow, never alone */
+    /* outcome colours: always shown with a word or arrow, never alone */
     --pi-in-tune: #0ca30c;
     --pi-sharp: #e34948;
     --pi-flat: #2a78d6;
@@ -19,18 +19,18 @@
     --pi-neutral: #a8a7a2;
 }
 
-[data-verdict="in_tune"] { --pi-v: var(--pi-in-tune); }
-[data-verdict="sharp"] { --pi-v: var(--pi-sharp); }
-[data-verdict="flat"] { --pi-v: var(--pi-flat); }
-[data-verdict="wrong_note"] { --pi-v: var(--pi-wrong); }
-[data-verdict="missed"] { --pi-v: var(--pi-missed); }
+[data-outcome="in_tune"] { --pi-v: var(--pi-in-tune); }
+[data-outcome="sharp"] { --pi-v: var(--pi-sharp); }
+[data-outcome="flat"] { --pi-v: var(--pi-flat); }
+[data-outcome="wrong_note"] { --pi-v: var(--pi-wrong); }
+[data-outcome="missed"] { --pi-v: var(--pi-missed); }
 
-/* Score: colour noteheads by verdict (CSS beats VexFlow's fill attributes). */
+/* Score: colour noteheads by outcome (CSS beats VexFlow's fill attributes). */
 .pi-score { background: #fff; overflow-x: auto; }
-.pi-score g[data-verdict] .vf-notehead path,
-.pi-score g[data-verdict] .vf-notehead,
-.pi-score path[data-verdict] { fill: var(--pi-v); stroke: var(--pi-v); }
-.pi-score g[data-verdict="missed"] .vf-notehead path { fill: none; stroke-width: 1.5; }
+.pi-score g[data-outcome] .vf-notehead path,
+.pi-score g[data-outcome] .vf-notehead,
+.pi-score path[data-outcome] { fill: var(--pi-v); stroke: var(--pi-v); }
+.pi-score g[data-outcome="missed"] .vf-notehead path { fill: none; stroke-width: 1.5; }
 
 /* Tuner dial */
 .pi-gauge { display: flex; flex-direction: column; align-items: center; }
@@ -50,12 +50,12 @@
 .pi-gauge-hub { fill: var(--pi-text); }
 .pi-gauge-readout { text-align: center; margin-top: .25rem; }
 .pi-gauge-caption { color: var(--pi-text-secondary); font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
-.pi-gauge-verdict { font-size: 1.6rem; font-weight: 600; line-height: 1.2; min-height: 2rem; color: var(--pi-text); }
-.pi-gauge[data-state="in_tune"] .pi-gauge-verdict { color: #087a08; }
-.pi-gauge[data-state="sharp"] .pi-gauge-verdict { color: #b8302f; }
-.pi-gauge[data-state="flat"] .pi-gauge-verdict { color: #1c5cab; }
-.pi-gauge[data-state="wrong_note"] .pi-gauge-verdict { color: var(--pi-wrong); }
-.pi-gauge[data-state="idle"] .pi-gauge-verdict { color: var(--pi-text-secondary); font-weight: 400; font-size: 1.1rem; }
+.pi-gauge-outcome { font-size: 1.6rem; font-weight: 600; line-height: 1.2; min-height: 2rem; color: var(--pi-text); }
+.pi-gauge[data-state="in_tune"] .pi-gauge-outcome { color: #087a08; }
+.pi-gauge[data-state="sharp"] .pi-gauge-outcome { color: #b8302f; }
+.pi-gauge[data-state="flat"] .pi-gauge-outcome { color: #1c5cab; }
+.pi-gauge[data-state="wrong_note"] .pi-gauge-outcome { color: var(--pi-wrong); }
+.pi-gauge[data-state="idle"] .pi-gauge-outcome { color: var(--pi-text-secondary); font-weight: 400; font-size: 1.1rem; }
 .pi-gauge-detail { color: var(--pi-text-secondary); font-variant-numeric: tabular-nums; }
 
 /* Chips, dots, tables */

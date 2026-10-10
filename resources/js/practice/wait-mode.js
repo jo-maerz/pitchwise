@@ -18,7 +18,6 @@ import { MIN_CLARITY, WRONG_NOTE_CENTS, cents, expectedHz } from './pitch-math.j
  *   - plays the same pitch again: the loudness dips and comes back (a new bow or a new pluck).
  */
 
-/** How long the right pitch must be held, in ms. */
 export const HOLD_MS = 150;
 /** A dropout (unclear frame, brief slip) shorter than this does not restart the hold. */
 export const GRACE_MS = 60;
@@ -82,7 +81,6 @@ export class WaitFollower {
         return null;
     }
 
-    /** Is this frame still the tail of the note just accepted? */
     stillLingering(frame, clear) {
         if (!clear) {
             this.silentSince ??= frame.t;

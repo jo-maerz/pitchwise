@@ -1,4 +1,3 @@
-/** Talks to the plain-PHP API (api/public/index.php) with the player's Sanctum token. */
 export class ApiError extends Error {
     constructor(status, code, message, details) {
         super(message);

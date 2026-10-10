@@ -16,7 +16,6 @@ class PlayerTokenService
 
     public function issue(User $user): string
     {
-        // Housekeeping: drop this user's expired player tokens.
         $user->tokens()->where('name', self::NAME)->where('expires_at', '<', now())->delete();
 
         return $user->createToken(

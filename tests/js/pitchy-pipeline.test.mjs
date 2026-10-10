@@ -1,12 +1,12 @@
 /*
  * End-to-end check of the detection path on synthetic violin-like tones:
- * pitchy (McLeod) frames → median of clear frames → verdict.
+ * pitchy (McLeod) frames → median of clear frames → outcome.
  * Needs the npm dependencies installed (npm install).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PitchDetector } from 'pitchy';
-import { judge, expectedHz } from '../../resources/js/practice/pitch-math.js';
+import { classifyNote, expectedHz } from '../../resources/js/practice/pitch-math.js';
 import { summarizeFrames } from '../../resources/js/practice/timeline.js';
 
 const RATE = 48000;
@@ -48,18 +48,18 @@ const cases = [
     ['high A6 in tune', 93, 10, 'in_tune'],
 ];
 
-for (const [name, midi, offset, verdict] of cases) {
+for (const [name, midi, offset, outcome] of cases) {
     test(`pitchy pipeline: ${name}`, () => {
         const hz = expectedHz(midi) * 2 ** (offset / 1200);
         const heard = summarizeFrames(framesOf(bowedTone(hz, 600, { seed: midi })));
         assert.ok(heard.hz, 'some clear frames');
-        const j = judge(midi, heard.hz, heard.clarity);
-        assert.equal(j.verdict, verdict, `${name}: heard ${heard.hz} Hz, ${j.cents} cents`);
+        const j = classifyNote(midi, heard.hz, heard.clarity);
+        assert.equal(j.outcome, outcome, `${name}: heard ${heard.hz} Hz, ${j.cents} cents`);
         assert.ok(Math.abs(j.cents - offset) < 6, `${name}: measured ${j.cents} cents, played ${offset}`);
     });
 }
 
 test('pitchy pipeline: silence is missed', () => {
     const heard = summarizeFrames(framesOf(new Float32Array(RATE / 2)));
-    assert.equal(judge(69, heard.hz, heard.clarity).verdict, 'missed');
+    assert.equal(classifyNote(69, heard.hz, heard.clarity).outcome, 'missed');
 });

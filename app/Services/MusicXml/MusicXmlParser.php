@@ -206,7 +206,6 @@ class MusicXmlParser
         );
     }
 
-    /** Record segno/coda/jump marks of a <sound> element on the measure being read. */
     private function markSound(?array &$measure, \SimpleXMLElement $sound): void
     {
         if ($measure === null) {
@@ -271,6 +270,7 @@ class MusicXmlParser
                 $last = array_key_last($notes);
                 if ($n['tie_stop'] && $last !== null && $notes[$last]['midi_pitch'] === $n['midi_pitch']) {
                     $notes[$last]['duration_beats'] = round($notes[$last]['duration_beats'] + $n['duration'], 4);
+
                     continue;
                 }
                 $notes[] = [
@@ -313,7 +313,6 @@ class MusicXmlParser
         return $notes;
     }
 
-    /** The score's XML text, unpacking a compressed .mxl if needed. */
     public function readXml(string $path): string
     {
         $handle = @fopen($path, 'rb');

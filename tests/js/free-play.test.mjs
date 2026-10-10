@@ -25,17 +25,17 @@ test('the nearest note is the target and the offset is measured against it', () 
     assert.equal(done.length, 1);
     assert.equal(done[0].name, 'A4');
     assert.ok(Math.abs(done[0].cents - 40) < 0.5, `cents ${done[0].cents}`);
-    assert.equal(done[0].verdict, 'sharp');
+    assert.equal(done[0].outcome, 'sharp');
 });
 
 test('a note inside the tolerance is in tune; flat is negative', () => {
     const seg = new NoteSegmenter({ tolerance: 30 });
     let [, t] = play(seg, A4 * 2 ** (-10 / 1200), 0, 300);
     let [done] = play(seg, 0, t, GAP_MS + STEP);
-    assert.equal(done[0].verdict, 'in_tune');
+    assert.equal(done[0].outcome, 'in_tune');
     [, t] = play(seg, A4 * 2 ** (-40 / 1200), t + 200, 300);
     [done] = play(seg, 0, t, GAP_MS + STEP);
-    assert.equal(done[0].verdict, 'flat');
+    assert.equal(done[0].outcome, 'flat');
     assert.ok(done[0].cents < -39);
 });
 

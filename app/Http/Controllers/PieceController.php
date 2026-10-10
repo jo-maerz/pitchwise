@@ -59,7 +59,6 @@ class PieceController extends Controller
         return view('pieces.show', compact('piece', 'runs', 'pitches'));
     }
 
-    /** The MusicXML itself, for the score renderer on the player page. */
     public function file(Piece $piece): StreamedResponse
     {
         Gate::authorize('view', $piece);
@@ -81,7 +80,6 @@ class PieceController extends Controller
         return redirect()->route('pieces.show', $piece)->with('status', 'Score confirmed. Ready to practise.');
     }
 
-    /** The original PDF, for the PDF page's viewer. */
     public function pdf(Piece $piece): StreamedResponse
     {
         Gate::authorize('playPdf', $piece);

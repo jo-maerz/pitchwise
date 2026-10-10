@@ -44,7 +44,7 @@ export class ScoreView {
         this.osmd.setOptions({ pageFormat: layout === 'pages' ? 'A4_P' : 'Endless' });
         this.osmd.render();
         this.buildNoteMap();
-        for (const [index, verdict] of this.colours) this.paint(index, verdict);
+        for (const [index, outcome] of this.colours) this.paint(index, outcome);
     }
 
     buildNoteMap() {
@@ -92,7 +92,6 @@ export class ScoreView {
         return this.osmd.GraphicSheet?.MusicPages?.length ?? 1;
     }
 
-    /** Page numbers that contain melody notes, in order. */
     layoutPages() {
         const pages = [...new Set(this.map.map((m) => m.page))].sort((a, b) => a - b);
         return pages.length ? pages : [1];
@@ -163,9 +162,9 @@ export class ScoreView {
         this.step = 0;
     }
 
-    colour(index, verdict) {
-        this.colours.set(index, verdict);
-        this.paint(index, verdict);
+    colour(index, outcome) {
+        this.colours.set(index, outcome);
+        this.paint(index, outcome);
     }
 
     clearColours() {
@@ -173,20 +172,20 @@ export class ScoreView {
         this.colours.clear();
     }
 
-    paint(index, verdict) {
+    paint(index, outcome) {
         const group = this.map[index]?.gnote?.getSVGGElement?.();
         if (!group) return;
         const heads = group.querySelectorAll('.vf-notehead path, .vf-notehead');
         const targets = heads.length ? heads : [group];
         targets.forEach((el) => {
-            if (verdict) {
-                el.setAttribute('data-verdict', verdict);
+            if (outcome) {
+                el.setAttribute('data-outcome', outcome);
             } else {
-                el.removeAttribute('data-verdict');
+                el.removeAttribute('data-outcome');
             }
         });
-        group.classList.toggle('pi-note-marked', Boolean(verdict));
-        if (verdict) group.setAttribute('data-verdict', verdict);
-        else group.removeAttribute('data-verdict');
+        group.classList.toggle('pi-note-marked', Boolean(outcome));
+        if (outcome) group.setAttribute('data-outcome', outcome);
+        else group.removeAttribute('data-outcome');
     }
 }

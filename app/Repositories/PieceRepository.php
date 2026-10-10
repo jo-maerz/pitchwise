@@ -27,8 +27,6 @@ class PieceRepository
     }
 
     /**
-     * Replace the expected notes of a piece in one transaction, inserting in chunks.
-     *
      * @param  list<array{note_index:int, measure:int, midi_pitch:int, onset_beats:float, duration_beats:float}>  $notes
      */
     public function replaceNotes(Piece $piece, array $notes, array $pieceUpdates): void

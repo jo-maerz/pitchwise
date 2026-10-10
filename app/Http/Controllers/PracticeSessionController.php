@@ -24,7 +24,7 @@ class PracticeSessionController extends Controller
         return view('sessions.show', [
             'session' => $session,
             'report' => $report,
-            // For the browser: the score drawn with this run's verdicts, and the two intonation series.
+            // For the browser: the score drawn with this run's outcomes, and the two intonation series.
             'reportData' => [
                 'tolerance' => ['mode' => $session->tolerance_mode, 'value' => $session->tolerance_value],
                 'scoreUrl' => route('pieces.file', $session->piece),

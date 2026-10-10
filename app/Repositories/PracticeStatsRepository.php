@@ -10,10 +10,8 @@ use App\Support\Pitch;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-/** Read queries behind the dashboard. Each one is a candidate for the EXPLAIN write-up. */
 class PracticeStatsRepository
 {
-    /** Finished runs, oldest first, for the score-over-time chart. */
     public function scoreHistory(User $user, int $limit = 60): Collection
     {
         return PracticeSession::query()
@@ -50,9 +48,7 @@ class PracticeStatsRepository
     }
 
     /**
-     * Per-pitch intonation on one piece over all the user's finished runs, as chart rows.
-     * Computed from note_results on demand (one piece's history is small; the index on
-     * practice_sessions (user_id, piece_id, finished_at) narrows the runs first).
+     * Computed on demand: the (user_id, piece_id, finished_at) index narrows the runs first.
      */
     public function pitchStatsForPiece(User $user, Piece $piece): Collection
     {
@@ -64,10 +60,10 @@ class PracticeStatsRepository
             ->groupBy('r.expected_midi')
             ->orderBy('r.expected_midi')
             ->selectRaw("r.expected_midi as midi, COUNT(*) as attempts,
-                SUM(CASE WHEN r.verdict = 'in_tune' THEN 1 ELSE 0 END) as in_tune,
-                AVG(CASE WHEN r.verdict IN ('in_tune', 'sharp', 'flat') THEN r.cents_offset END) as avg_cents")
+                SUM(CASE WHEN r.outcome = 'in_tune' THEN 1 ELSE 0 END) as in_tune,
+                AVG(CASE WHEN r.outcome IN ('in_tune', 'sharp', 'flat') THEN r.cents_offset END) as avg_cents")
             ->get()
-            ->map(fn ($r) => Pitch::chartRow(
+            ->map(fn ($r) => Pitch::intonationByNoteBar(
                 (int) $r->midi,
                 (int) $r->attempts,
                 (int) $r->in_tune,
@@ -77,8 +73,6 @@ class PracticeStatsRepository
     }
 
     /**
-     * Bars with the lowest in-tune rate over the user's recent finished runs.
-     *
      * @return Collection<int, object{piece_id:int, title:string, measure:int, notes:int, in_tune:int, rate:float}>
      */
     public function troubleMeasures(User $user, int $recentRuns = 20, int $limit = 5): Collection
@@ -103,8 +97,8 @@ class PracticeStatsRepository
             ->whereIn('r.session_id', $sessionIds)
             ->groupBy('s.piece_id', 'p.title', 'n.measure')
             ->havingRaw('COUNT(*) >= 3')
-            ->selectRaw("s.piece_id, p.title, n.measure, COUNT(*) as notes, SUM(CASE WHEN r.verdict = 'in_tune' THEN 1 ELSE 0 END) as in_tune")
-            ->orderByRaw("SUM(CASE WHEN r.verdict = 'in_tune' THEN 1 ELSE 0 END) * 1.0 / COUNT(*)")
+            ->selectRaw("s.piece_id, p.title, n.measure, COUNT(*) as notes, SUM(CASE WHEN r.outcome = 'in_tune' THEN 1 ELSE 0 END) as in_tune")
+            ->orderByRaw("SUM(CASE WHEN r.outcome = 'in_tune' THEN 1 ELSE 0 END) * 1.0 / COUNT(*)")
             ->orderByDesc('notes')
             ->limit($limit)
             ->get()

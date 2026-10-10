@@ -1,6 +1,6 @@
 # Pitchwise — developer README
 
-A tuner and a score follower in one. The browser shows a MusicXML score, moves a cursor at the chosen tempo, listens through the microphone and shows **live** whether the current note is in tune, too high or too low. Each note gets a verdict, each page a summary, and each run a stored report. A dashboard tracks progress and per-note intonation.
+A tuner and a score follower in one. The browser shows a MusicXML score, moves a cursor at the chosen tempo, listens through the microphone and shows **live** whether the current note is in tune, too high or too low. Each note gets an outcome, each page a summary, and each run a stored report. A dashboard tracks progress and per-note intonation.
 
 It copies Tomplay's shape on a small scale: a **Laravel** website and a **plain-PHP API** sharing one **MySQL** database; real-time audio stays in the browser.
 
@@ -40,15 +40,15 @@ flowchart LR
 | PDF → MusicXML (Audiveris, optical music recognition) | `app/Jobs/ConvertPdfScore.php`, `app/Services/Omr/OmrSpool.php` (file hand-over), `app/Services/Omr/ScoreSanity.php`, worker `docker/omr/watch.sh` |
 | Per-pitch statistics | `app/Services/PitchStatsAggregator.php`, command `practice:aggregate-stats`, scheduled in `routes/console.php` |
 | Plain-PHP API | `api/public/index.php` (front controller), `api/src/*` (namespace `PracticeApi\`) |
-| Pitch rule (PHP) | `api/src/Verdict.php` |
+| Pitch rule (PHP) | `api/src/PitchRule.php` |
 | Browser player | `resources/js/player.js` + `resources/js/practice/*` |
-| Pitch rule (JS) | `resources/js/practice/pitch-math.js` — same rule as `Verdict.php`, both tested against `tests/fixtures/verdict-cases.json` |
+| Pitch rule (JS) | `resources/js/practice/pitch-math.js` — same rule as `PitchRule.php`, both tested against `tests/fixtures/pitch-rule-cases.json` |
 
 Stack as built: PHP 8.3, Laravel 13.34, Breeze 2 (Blade), Sanctum 4, PHPUnit 12, OpenSheetMusicDisplay 2.2, pitchy 4.1, Chart.js 4.5, Vite 8, Tailwind 3.
 
 ## Run it locally
 
-Requirements: PHP ≥ 8.3 with `pdo_mysql` (or `pdo_sqlite`), `xmlreader`, `zip`; Composer; Node 20+; MySQL 8 (or SQLite for a quick try).
+Requirements: PHP ≥ 8.3 with `pdo_mysql`, `xmlreader`, `zip`; Composer; Node 20+; MySQL 8.
 
 ```bash
 composer install            # no composer.lock is shipped (see below); this resolves and writes one
@@ -56,7 +56,7 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Database — MySQL (as in the playbook) in `.env`:
+Database — MySQL in `.env`:
 
 ```dotenv
 DB_CONNECTION=mysql
@@ -67,7 +67,7 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-…or keep `DB_CONNECTION=sqlite` and `touch database/database.sqlite` for a zero-setup run. Both the website and the API read the same `.env`.
+Both the website and the API read the same `.env`.
 
 ```bash
 php artisan migrate --seed  # demo user demo@example.com / password, 3 catalogue pieces, 14 fake runs
@@ -132,7 +132,7 @@ Recognition is a guess, so a PDF-sourced piece **cannot be practised until its o
 
 ### MusicXML + PDF, and PDF-only practice
 
-A piece can hold both files. The MusicXML gives the full player (note map, verdicts, reports); the original PDF is kept next to it. Upload both on **Upload a score** (`score` = MusicXML or PDF, optional `pdf` = original PDF), or add either later with **Edit piece**. With MusicXML present the PDF is never recognised. A PDF is only recognised when it is the only file.
+A piece can hold both files. The MusicXML gives the full player (note map, outcomes, reports); the original PDF is kept next to it. Upload both on **Upload a score** (`score` = MusicXML or PDF, optional `pdf` = original PDF), or add either later with **Edit piece**. With MusicXML present the PDF is never recognised. A PDF is only recognised when it is the only file.
 
 | Piece state (`parse_status`) | Full player (`play`) | PDF page (`playPdf`, `/pieces/{id}/play-pdf`) |
 |---|---|---|
@@ -156,7 +156,7 @@ expected Hz = A · 2^((midi − 69) / 12)        A = concert pitch, 440 by defau
 cents       = 1200 · log2(heard Hz / expected Hz)
 ```
 
-| Verdict | Rule |
+| Outcome | Rule |
 |---|---|
 | `in_tune` | within the tolerance: **±30 cents** by default; a setting, in cents or in Hz |
 | `sharp` / `flat` | outside the tolerance, up to ±50 cents |
@@ -165,7 +165,7 @@ cents       = 1200 · log2(heard Hz / expected Hz)
 
 The in-tune check runs first. In **Hz mode** that means a fixed window: ±30 Hz is −288/+247 cents on the open G (G3, 196 Hz) but −40/+39 cents at E6 (1319 Hz), so on low strings a neighbouring note counts as in tune. That is why cents is the default; the player says so next to the setting, and each run stores the rule it used (`practice_sessions.tolerance_mode`, `tolerance_value`, `reference_hz`) so old runs keep their meaning.
 
-The playbook first had the wrong-note boundary at 100 cents. A clean semitone slip (B♭ for A, exactly 100 cents) then came out as "too high", so it is 50 here. Change `WRONG_NOTE_CENTS` in both `Verdict.php` and `pitch-math.js` together; the shared fixture test will tell you if they disagree.
+The playbook first had the wrong-note boundary at 100 cents. A clean semitone slip (B♭ for A, exactly 100 cents) then came out as "too high", so it is 50 here. Change `WRONG_NOTE_CENTS` in both `PitchRule.php` and `pitch-math.js` together; the shared fixture test will tell you if they disagree.
 
 ## How a run works (browser)
 
@@ -175,12 +175,12 @@ The playbook first had the wrong-note boundary at 100 cents. A clean semitone sl
    - The cursor follows the **written** time (`timeline.js`).
    - Each note is listened to in the middle 60 % of its length, shifted by the *input delay* setting (default 80 ms).
    - The dial compares the median of the last 3 clear frames to the note being heard now.
-4. When a note's window closes: median of its clear frames → `judge()` → notehead coloured.
-5. At the end of each page, and at the end: `POST /sessions/{id}/results` with that batch (`finished: true` on the last). The server's verdicts replace the browser's if they ever differ. The end-of-run panel shows the score, per-page table, bars to practise and the notes furthest off; the saved report is `/sessions/{id}`.
+4. When a note's window closes: median of its clear frames → `classifyNote()` → notehead coloured.
+5. At the end of each page, and at the end: `POST /sessions/{id}/results` with that batch (`finished: true` on the last). The server's outcomes replace the browser's if they ever differ. The end-of-run panel shows the score, per-page table, bars to practise and the notes furthest off; the saved report is `/sessions/{id}`.
 
 ### Wait-for-me mode
 
-`resources/js/practice/wait-mode.js` (`WaitFollower`, pure logic, tested in `tests/js/wait-mode.test.mjs`) replaces the tempo clock: the cursor sits on a note until frames within ±50 cents of it have been heard for 150 ms (dropouts under 60 ms are tolerated; a repeated pitch needs 80 ms of silence first). The accepted frames go through the same `finalize()` → `judge()` → batch-upload path as a timed run, so verdicts, reports and server re-judging are unchanged. Skip records the note as missed. Runs still store `bpm` and `latency_ms` (the page's values, unused in this mode); the run does not record which mode was used. After a note is accepted the follower is `lingering`: the old pitch is ignored (and the dial stays quiet) until a different pitch is heard, the sound stops for 80 ms, or the loudness dips and rises by 3 dB (a new attack). That is how repeated notes advance without a pause, and why `audio.js` now reports a `level` per frame.
+`resources/js/practice/wait-mode.js` (`WaitFollower`, pure logic, tested in `tests/js/wait-mode.test.mjs`) replaces the tempo clock: the cursor sits on a note until frames within ±50 cents of it have been heard for 150 ms (dropouts under 60 ms are tolerated; a repeated pitch needs 80 ms of silence first). The accepted frames go through the same `finalize()` → `classifyNote()` → batch-upload path as a timed run, so outcomes, reports and server re-judging are unchanged. Skip records the note as missed. Runs still store `bpm` and `latency_ms` (the page's values, unused in this mode); the run does not record which mode was used. After a note is accepted the follower is `lingering`: the old pitch is ignored (and the dial stays quiet) until a different pitch is heard, the sound stops for 80 ms, or the loudness dips and rises by 3 dB (a new attack). That is how repeated notes advance without a pause, and why `audio.js` now reports a `level` per frame.
 
 ## API reference
 
@@ -190,7 +190,7 @@ All routes need `Authorization: Bearer <id>|<token>` with ability `practice:writ
 |---|---|---|---|
 | `GET /api/v1/pieces/{id}` | – | `200` piece + `notes[]` (`note_index`, `measure`, `midi_pitch`, `onset_beats`, `duration_beats`) | `404` not yours / not catalogue, `409 not_ready` |
 | `POST /api/v1/sessions` | `piece_id`, `bpm` (20–300), `tolerance_mode` (`cents`\|`hz`), `tolerance_value` (1–100), `reference_hz` (400–480), `latency_ms` | `201` session | `422 validation` |
-| `POST /api/v1/sessions/{id}/results` | `results[]` of `{note_index, expected_midi, detected_hz\|null, clarity\|null}` (≤ 2000), `finished` | `201` server verdicts, running `counts`, `score_pct` | `422` expected pitch ≠ score (whole batch rejected), `409 duplicate`, `409 already_finished`, `404` someone else's run |
+| `POST /api/v1/sessions/{id}/results` | `results[]` of `{note_index, expected_midi, detected_hz\|null, clarity\|null}` (≤ 2000), `finished` | `201` server outcomes, running `counts`, `score_pct` | `422` expected pitch ≠ score (whole batch rejected), `409 duplicate`, `409 already_finished`, `404` someone else's run |
 
 Example:
 
@@ -208,8 +208,8 @@ Get a token for manual testing with `php artisan tinker --execute 'echo app(App\
 |---|---|---|
 | `pieces` | id, owner_id (NULL = catalogue), title, composer, instrument, musicxml_path, default_bpm, beats_per_measure, note_count, parse_status | `parse_status`: pending → ready / failed |
 | `piece_notes` | piece_id, note_index, measure, midi_pitch, onset_beats, duration_beats | unique (piece_id, note_index); written by the parse job |
-| `practice_sessions` | user_id, piece_id, bpm, tolerance_mode, tolerance_value, reference_hz, latency_ms, started_at, finished_at, score_pct, aggregated_at | index (user_id, piece_id, finished_at), index (finished_at, aggregated_at) |
-| `note_results` | session_id, note_index, expected_midi, detected_midi, detected_hz, cents_offset, verdict ENUM, clarity | unique (session_id, note_index) |
+| `practice_sessions` | user_id, piece_id, bpm, tolerance_mode, tolerance_value, reference_hz, latency_ms, started_at, finished_at, score_pct, aggregated_at | index (user_id, piece_id, finished_at), index (user_id, finished_at), index (finished_at, aggregated_at) |
+| `note_results` | session_id, note_index, expected_midi, detected_midi, detected_hz, cents_offset, outcome ENUM, clarity | unique (session_id, note_index) |
 | `user_pitch_stats` | user_id, midi_pitch, attempts, in_tune, avg_cents | unique (user_id, midi_pitch); rebuilt per user by the aggregator (idempotent) |
 
 Additions to the playbook's first data model: `onset_beats` (the browser needs note positions, and rests take time), the per-run pitch rule columns, `detected_hz` (so the server can judge), `beats_per_measure` (count-in), `parse_status`, and nullable `owner_id` for the shared catalogue.
@@ -219,9 +219,9 @@ Which notes count — the parser and the browser's note map use the same rules: 
 ## Tests
 
 ```bash
-php artisan test     # 54 tests: parser edge cases, verdict fixture, uploads + policies, player token,
+php artisan test     # 54 tests: parser edge cases, pitch-rule fixture, uploads + policies, player token,
                      # report, aggregation, dashboard, and the plain-PHP API in-process on Laravel's DB connection
-npm test             # 14 tests: verdict fixture (same file as PHP), timeline, report,
+npm test             # 14 tests: pitch-rule fixture (same file as PHP), timeline, report,
                      # and pitchy on synthetic bowed tones with vibrato (needs npm install)
 vendor/bin/pint      # code style
 ```
@@ -260,7 +260,7 @@ This version was written with Claude in one session. Verified there: all PHP and
 1. `npm run build` passes.
 2. The player loads a catalogue piece without the "melody notes" count warning.
 3. On the tuner page, an open A reads about 440 Hz (or your concert A) and the needle is steady.
-4. Play the open-strings exercise slowly; noteheads turn colour as you go. If verdicts seem one note late or early, adjust *Input delay*.
+4. Play the open-strings exercise slowly; noteheads turn colour as you go. If outcomes seem one note late or early, adjust *Input delay*.
 
 | What I checked by hand | Result |
 |---|---|

@@ -67,7 +67,7 @@
                 <div class="bg-amber-50 border border-amber-200 sm:rounded-lg p-6 space-y-4">
                     <div>
                         <h3 class="font-semibold text-amber-900">Check the recognised score</h3>
-                        <p class="text-sm text-amber-900">Notes were read from your PDF by software, which makes mistakes (wrong rhythms, missed accidentals, a clef read wrongly). Compare it with your PDF: practising against wrong notes gives wrong verdicts.</p>
+                        <p class="text-sm text-amber-900">Notes were read from your PDF by software, which makes mistakes (wrong rhythms, missed accidentals, a clef read wrongly). Compare it with your PDF: practising against wrong notes gives wrong outcomes.</p>
                         @if ($piece->review_notes)
                             <ul class="mt-2 list-disc pl-5 text-sm text-amber-900">
                                 @foreach (explode("\n", $piece->review_notes) as $line)<li>{{ $line }}</li>@endforeach

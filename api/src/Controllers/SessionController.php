@@ -8,7 +8,7 @@ use PDO;
 use PracticeApi\ApiException;
 use PracticeApi\Http\Request;
 use PracticeApi\Http\Response;
-use PracticeApi\Verdict;
+use PracticeApi\PitchRule;
 use Throwable;
 
 final class SessionController
@@ -27,10 +27,10 @@ final class SessionController
         $pieceId = self::int($in, 'piece_id', $errors, 1, PHP_INT_MAX);
         $bpm = self::int($in, 'bpm', $errors, 20, 300);
         $mode = $in['tolerance_mode'] ?? 'cents';
-        if (! in_array($mode, Verdict::MODES, true)) {
+        if (! in_array($mode, PitchRule::MODES, true)) {
             $errors['tolerance_mode'] = 'Must be "cents" or "hz".';
         }
-        $tolerance = self::number($in, 'tolerance_value', $errors, Verdict::TOLERANCE_MIN, Verdict::TOLERANCE_MAX, 30.0);
+        $tolerance = self::number($in, 'tolerance_value', $errors, PitchRule::TOLERANCE_MIN, PitchRule::TOLERANCE_MAX, 30.0);
         $reference = self::number($in, 'reference_hz', $errors, 400.0, 480.0, 440.0);
         $latency = self::int($in, 'latency_ms', $errors, -500, 1000, 0);
         if ($errors) {
@@ -112,7 +112,7 @@ final class SessionController
             'counts' => $summary['counts'],
             'results' => array_map(fn (array $r) => [
                 'note_index' => $r['note_index'],
-                'verdict' => $r['verdict'],
+                'outcome' => $r['outcome'],
                 'cents' => $r['cents_offset'],
                 'detected_midi' => $r['detected_midi'],
             ], $rows),
@@ -182,7 +182,7 @@ final class SessionController
                 continue;
             }
 
-            $judged = Verdict::judge(
+            $classified = PitchRule::classify(
                 $expected[$index],
                 $hz === null ? null : (float) $hz,
                 $clarity === null ? null : (float) $clarity,
@@ -193,10 +193,10 @@ final class SessionController
             $rows[] = [
                 'note_index' => $index,
                 'expected_midi' => $expected[$index],
-                'detected_midi' => $judged['detected_midi'],
-                'detected_hz' => $judged['verdict'] === Verdict::MISSED || $hz === null ? null : round((float) $hz, 2),
-                'cents_offset' => $judged['cents'],
-                'verdict' => $judged['verdict'],
+                'detected_midi' => $classified['detected_midi'],
+                'detected_hz' => $classified['outcome'] === PitchRule::MISSED || $hz === null ? null : round((float) $hz, 2),
+                'cents_offset' => $classified['cents'],
+                'outcome' => $classified['outcome'],
                 'clarity' => $clarity === null ? null : round((float) $clarity, 3),
             ];
         }
@@ -225,13 +225,13 @@ final class SessionController
 
     private function insertChunk(int $sessionId, array $chunk): void
     {
-        $columns = ['session_id', 'note_index', 'expected_midi', 'detected_midi', 'detected_hz', 'cents_offset', 'verdict', 'clarity'];
+        $columns = ['session_id', 'note_index', 'expected_midi', 'detected_midi', 'detected_hz', 'cents_offset', 'outcome', 'clarity'];
         $row = '('.implode(',', array_fill(0, count($columns), '?')).')';
         $sql = 'INSERT INTO note_results ('.implode(',', $columns).') VALUES '.implode(',', array_fill(0, count($chunk), $row));
         $params = [];
         foreach ($chunk as $r) {
             array_push($params, $sessionId, $r['note_index'], $r['expected_midi'], $r['detected_midi'],
-                $r['detected_hz'], $r['cents_offset'], $r['verdict'], $r['clarity']);
+                $r['detected_hz'], $r['cents_offset'], $r['outcome'], $r['clarity']);
         }
         $this->pdo->prepare($sql)->execute($params);
     }
@@ -239,16 +239,16 @@ final class SessionController
     /** @return array{score_pct: float, counts: array<string, int>} */
     private function summary(int $sessionId): array
     {
-        $stmt = $this->pdo->prepare('SELECT verdict, COUNT(*) AS n FROM note_results WHERE session_id = ? GROUP BY verdict');
+        $stmt = $this->pdo->prepare('SELECT outcome, COUNT(*) AS n FROM note_results WHERE session_id = ? GROUP BY outcome');
         $stmt->execute([$sessionId]);
-        $counts = array_fill_keys([Verdict::IN_TUNE, Verdict::SHARP, Verdict::FLAT, Verdict::WRONG_NOTE, Verdict::MISSED], 0);
+        $counts = array_fill_keys([PitchRule::IN_TUNE, PitchRule::SHARP, PitchRule::FLAT, PitchRule::WRONG_NOTE, PitchRule::MISSED], 0);
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $counts[$row['verdict']] = (int) $row['n'];
+            $counts[$row['outcome']] = (int) $row['n'];
         }
         $total = array_sum($counts);
 
         return [
-            'score_pct' => $total === 0 ? 0.0 : round(100 * $counts[Verdict::IN_TUNE] / $total, 2),
+            'score_pct' => $total === 0 ? 0.0 : round(100 * $counts[PitchRule::IN_TUNE] / $total, 2),
             'counts' => $counts,
         ];
     }

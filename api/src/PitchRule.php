@@ -6,7 +6,7 @@ namespace PracticeApi;
 
 /**
  * The pitch rule. Mirrors resources/js/practice/pitch-math.js; both are checked against
- * tests/fixtures/verdict-cases.json so the live display and the stored result always agree.
+ * tests/fixtures/pitch-rule-cases.json so the live display and the stored result always agree.
  *
  *   expected Hz = reference · 2^((midi − 69) / 12)
  *   cents       = 1200 · log2(played / expected)
@@ -18,7 +18,7 @@ namespace PracticeApi;
  *            written one (and outside the tolerance)
  * Missed   : no clear pitch in the note's window
  */
-final class Verdict
+final class PitchRule
 {
     public const IN_TUNE = 'in_tune';
 
@@ -56,9 +56,9 @@ final class Verdict
     }
 
     /**
-     * @return array{verdict: string, cents: ?float, detected_midi: ?int}
+     * @return array{outcome: string, cents: ?float, detected_midi: ?int}
      */
-    public static function judge(
+    public static function classify(
         int $expectedMidi,
         ?float $detectedHz,
         ?float $clarity,
@@ -67,7 +67,7 @@ final class Verdict
         float $referenceHz = 440.0,
     ): array {
         if ($detectedHz === null || $detectedHz <= 0 || ($clarity !== null && $clarity < self::MIN_CLARITY)) {
-            return ['verdict' => self::MISSED, 'cents' => null, 'detected_midi' => null];
+            return ['outcome' => self::MISSED, 'cents' => null, 'detected_midi' => null];
         }
 
         $expectedHz = self::expectedHz($expectedMidi, $referenceHz);
@@ -76,7 +76,7 @@ final class Verdict
             ? abs($detectedHz - $expectedHz) <= $tolerance
             : abs($cents) <= $tolerance;
 
-        $verdict = match (true) {
+        $outcome = match (true) {
             $inTune => self::IN_TUNE,
             abs($cents) > self::WRONG_NOTE_CENTS => self::WRONG_NOTE,
             $cents > 0 => self::SHARP,
@@ -84,7 +84,7 @@ final class Verdict
         };
 
         return [
-            'verdict' => $verdict,
+            'outcome' => $outcome,
             'cents' => round($cents, 2),
             'detected_midi' => self::nearestMidi($detectedHz, $referenceHz),
         ];

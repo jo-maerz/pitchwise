@@ -1,4 +1,3 @@
-{{-- Shared pitch-rule fields for the player and the tuner. --}}
 <fieldset>
     <legend class="text-sm font-medium text-gray-700">Counts as in tune within</legend>
     <div class="mt-1 flex items-center gap-2">

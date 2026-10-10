@@ -12,11 +12,11 @@ class NoteResult extends Model
 
     public $timestamps = false;
 
-    public const VERDICTS = ['in_tune', 'sharp', 'flat', 'wrong_note', 'missed'];
+    public const OUTCOMES = ['in_tune', 'sharp', 'flat', 'wrong_note', 'missed'];
 
     protected $fillable = [
         'session_id', 'note_index', 'expected_midi', 'detected_midi',
-        'detected_hz', 'cents_offset', 'verdict', 'clarity',
+        'detected_hz', 'cents_offset', 'outcome', 'clarity',
     ];
 
     protected function casts(): array

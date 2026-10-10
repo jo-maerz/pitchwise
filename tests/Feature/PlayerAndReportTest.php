@@ -67,7 +67,7 @@ class PlayerAndReportTest extends TestCase
             NoteResult::create([
                 'session_id' => $session->id, 'note_index' => $n->note_index, 'expected_midi' => $n->midi_pitch,
                 'detected_midi' => $n->midi_pitch, 'detected_hz' => 440, 'cents_offset' => [3, 45, -2, -60][$i],
-                'verdict' => ['in_tune', 'sharp', 'in_tune', 'flat'][$i], 'clarity' => 0.95,
+                'outcome' => ['in_tune', 'sharp', 'in_tune', 'flat'][$i], 'clarity' => 0.95,
             ]);
         }
 
@@ -88,10 +88,10 @@ class PlayerAndReportTest extends TestCase
         $user = User::factory()->create();
         $piece = Piece::where('title', 'Open Strings and A Major Arpeggio')->sole();
         $note = $piece->notes()->first();
-        $make = function (string $verdict, float $cents, bool $finished = true) use ($user, $piece, $note) {
+        $make = function (string $outcome, float $cents, bool $finished = true) use ($user, $piece, $note) {
             $s = PracticeSession::factory()->for($user)->for($piece)->create(['finished_at' => $finished ? now() : null, 'score_pct' => 50]);
             NoteResult::create(['session_id' => $s->id, 'note_index' => $note->note_index, 'expected_midi' => $note->midi_pitch,
-                'detected_midi' => $note->midi_pitch, 'detected_hz' => 200, 'cents_offset' => $cents, 'verdict' => $verdict, 'clarity' => 0.95]);
+                'detected_midi' => $note->midi_pitch, 'detected_hz' => 200, 'cents_offset' => $cents, 'outcome' => $outcome, 'clarity' => 0.95]);
 
             return $s;
         };
@@ -121,12 +121,12 @@ class PlayerAndReportTest extends TestCase
         $session = PracticeSession::factory()->for($user)->for($piece)->create(['finished_at' => now()]);
         $unfinished = PracticeSession::factory()->for($user)->for($piece)->create();
         $note = $piece->notes()->first();
-        foreach ([[$session, 'sharp', 40], [$unfinished, 'flat', -50]] as [$s, $verdict, $cents]) {
+        foreach ([[$session, 'sharp', 40], [$unfinished, 'flat', -50]] as [$s, $outcome, $cents]) {
             NoteResult::create(['session_id' => $s->id, 'note_index' => $note->note_index, 'expected_midi' => $note->midi_pitch,
-                'detected_midi' => $note->midi_pitch, 'detected_hz' => 200, 'cents_offset' => $cents, 'verdict' => $verdict, 'clarity' => 0.95]);
+                'detected_midi' => $note->midi_pitch, 'detected_hz' => 200, 'cents_offset' => $cents, 'outcome' => $outcome, 'clarity' => 0.95]);
         }
         NoteResult::create(['session_id' => $session->id, 'note_index' => $note->note_index + 1, 'expected_midi' => $note->midi_pitch,
-            'detected_midi' => null, 'detected_hz' => null, 'cents_offset' => null, 'verdict' => 'missed', 'clarity' => null]);
+            'detected_midi' => null, 'detected_hz' => null, 'cents_offset' => null, 'outcome' => 'missed', 'clarity' => null]);
 
         $this->artisan('practice:aggregate-stats')->expectsOutput('Aggregated 1 finished session(s).')->assertSuccessful();
         $this->artisan('practice:aggregate-stats')->expectsOutput('Aggregated 0 finished session(s).');

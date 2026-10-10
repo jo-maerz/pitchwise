@@ -7,7 +7,6 @@ use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /** php artisan migrate --seed: a demo login, the catalogue, and some practice history. */
     public function run(): void
     {
         User::firstOrCreate(

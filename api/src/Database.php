@@ -8,22 +8,14 @@ use PDO;
 
 final class Database
 {
-    public static function connect(Env $env, string $basePath): PDO
+    public static function connect(Env $env): PDO
     {
-        $driver = $env->get('DB_CONNECTION', 'sqlite');
+        $driver = $env->get('DB_CONNECTION', 'mysql');
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ];
-
-        if ($driver === 'sqlite') {
-            $path = $env->get('DB_DATABASE') ?: $basePath.'/database/database.sqlite';
-            $pdo = new PDO('sqlite:'.$path, null, null, $options);
-            $pdo->exec('PRAGMA foreign_keys = ON');
-
-            return $pdo;
-        }
 
         if ($driver !== 'mysql' && $driver !== 'mariadb') {
             throw new \RuntimeException("Unsupported DB_CONNECTION '{$driver}'.");

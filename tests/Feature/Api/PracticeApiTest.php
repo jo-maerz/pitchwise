@@ -111,7 +111,7 @@ class PracticeApiTest extends TestCase
             $this->heard(1, 293.66 * 2 ** (40 / 1200)),
         ]]);
         $this->assertSame(201, $r->status, $r->body());
-        $this->assertSame(['in_tune', 'sharp'], array_column($r->data['results'], 'verdict'));
+        $this->assertSame(['in_tune', 'sharp'], array_column($r->data['results'], 'outcome'));
         $this->assertFalse($r->data['finished']);
 
         // last batch: A4 is played as B-flat, E5 is silent, then finish
@@ -119,7 +119,7 @@ class PracticeApiTest extends TestCase
             $this->heard(2, 466.16),
             $this->heard(3, null, null),
         ]]);
-        $this->assertSame(['wrong_note', 'missed'], array_column($r->data['results'], 'verdict'));
+        $this->assertSame(['wrong_note', 'missed'], array_column($r->data['results'], 'outcome'));
         $this->assertSame(25.0, $r->data['score_pct']);
         $this->assertSame(['in_tune' => 1, 'sharp' => 1, 'flat' => 0, 'wrong_note' => 1, 'missed' => 1], $r->data['counts']);
 
@@ -140,15 +140,15 @@ class PracticeApiTest extends TestCase
         // G3 (196 Hz) played as A3 (220 Hz): 24 Hz off, so "in tune" under ±30 Hz — documented trade-off.
         $r = $this->api('POST', "/sessions/$id/results", ['results' => [$this->heard(0, 220.0)], 'finished' => true]);
 
-        $this->assertSame('in_tune', $r->data['results'][0]['verdict']);
+        $this->assertSame('in_tune', $r->data['results'][0]['outcome']);
         $this->assertSame(200.0, $r->data['results'][0]['cents']);
     }
 
     #[Test]
-    public function the_client_cannot_claim_a_different_expected_pitch_or_verdict(): void
+    public function the_client_cannot_claim_a_different_expected_pitch_or_outcome(): void
     {
         $id = $this->startRun();
-        $fake = ['note_index' => 0, 'expected_midi' => 69, 'detected_hz' => 440.0, 'clarity' => 0.99, 'verdict' => 'in_tune'];
+        $fake = ['note_index' => 0, 'expected_midi' => 69, 'detected_hz' => 440.0, 'clarity' => 0.99, 'outcome' => 'in_tune'];
 
         $r = $this->api('POST', "/sessions/$id/results", ['results' => [$fake]]);
 

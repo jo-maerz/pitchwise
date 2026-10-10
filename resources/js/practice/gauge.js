@@ -1,6 +1,6 @@
-import { IN_TUNE, SHARP, FLAT, WRONG_NOTE, VERDICT_LABELS, noteName } from './pitch-math.js';
+import { IN_TUNE, SHARP, FLAT, WRONG_NOTE, OUTCOME_LABELS, noteName } from './pitch-math.js';
 
-const RANGE = 50; // the dial shows ±50 cents
+const RANGE = 50;
 const CX = 150;
 const CY = 150;
 const R = 120;
@@ -18,7 +18,7 @@ function arc(from, to, r = R) {
 
 /**
  * The live tuner dial: ±50 cents around the target note, the in-tune band shaded,
- * a needle for what is being played, and a word for the verdict (never colour alone).
+ * a needle for what is being played, and a word for the outcome (never colour alone).
  */
 export class Gauge {
     constructor(root) {
@@ -40,13 +40,13 @@ export class Gauge {
             </svg>
             <div class="pi-gauge-readout">
                 <div class="pi-gauge-target"><span class="pi-gauge-caption">Target</span> <strong data-target>–</strong></div>
-                <div class="pi-gauge-verdict" data-verdict aria-live="polite">Waiting for sound</div>
+                <div class="pi-gauge-outcome" data-outcome aria-live="polite">Waiting for sound</div>
                 <div class="pi-gauge-detail" data-detail>&nbsp;</div>
             </div>`;
         this.needle = root.querySelector('.pi-gauge-needle');
         this.band = root.querySelector('.pi-gauge-band');
         this.targetEl = root.querySelector('[data-target]');
-        this.verdictEl = root.querySelector('[data-verdict]');
+        this.outcomeEl = root.querySelector('[data-outcome]');
         this.detailEl = root.querySelector('[data-detail]');
         this.lastBand = '';
     }
@@ -60,13 +60,13 @@ export class Gauge {
         }
     }
 
-    /** @param {{cents:number, hz:number, verdict:string, detectedMidi:number}|null} reading */
+    /** @param {{cents:number, hz:number, outcome:string, detectedMidi:number}|null} reading */
     show(reading) {
-        const state = reading ? reading.verdict : 'idle';
+        const state = reading ? reading.outcome : 'idle';
         this.root.dataset.state = state;
         if (!reading) {
             this.needle.style.opacity = '0.25';
-            this.verdictEl.textContent = 'Waiting for sound';
+            this.outcomeEl.textContent = 'Waiting for sound';
             this.detailEl.innerHTML = '&nbsp;';
             return;
         }
@@ -79,8 +79,8 @@ export class Gauge {
             [SHARP]: 'Too high ↑',
             [FLAT]: 'Too low ↓',
             [WRONG_NOTE]: `Wrong note: ${noteName(reading.detectedMidi)}`,
-        }[reading.verdict] ?? VERDICT_LABELS[reading.verdict];
-        this.verdictEl.textContent = label;
+        }[reading.outcome] ?? OUTCOME_LABELS[reading.outcome];
+        this.outcomeEl.textContent = label;
         this.detailEl.textContent = `${sign}${Math.abs(Math.round(reading.cents))} cents · ${reading.hz.toFixed(1)} Hz`;
     }
 }

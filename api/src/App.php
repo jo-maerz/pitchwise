@@ -11,7 +11,6 @@ use PracticeApi\Http\Request;
 use PracticeApi\Http\Response;
 use Throwable;
 
-
 final class App
 {
     private const PREFIX = '/api/v1';

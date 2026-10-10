@@ -3,8 +3,13 @@
 namespace Tests\Feature;
 
 use App\Jobs\ConvertPdfScore;
+use App\Jobs\ParseMusicXml;
 use App\Models\Piece;
 use App\Models\User;
+use App\Repositories\PieceRepository;
+use App\Services\Omr\OmrSpool;
+use App\Services\Omr\ScoreSanity;
+use App\Services\PieceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
@@ -25,7 +30,7 @@ class PdfScoreTest extends TestCase
         Storage::fake('local');
         $this->spool = sys_get_temp_dir().'/omr-spool-'.uniqid();
         config(['practice.omr.spool' => $this->spool]);
-        $this->app->forgetInstance(\App\Services\Omr\OmrSpool::class);
+        $this->app->forgetInstance(OmrSpool::class);
     }
 
     protected function tearDown(): void
@@ -52,7 +57,7 @@ class PdfScoreTest extends TestCase
     private function runJob(Piece $piece): ConvertPdfScore
     {
         $job = (new ConvertPdfScore($piece))->withFakeQueueInteractions();
-        $job->handle(app(\App\Services\Omr\OmrSpool::class), app(\App\Services\PieceService::class), app(\App\Repositories\PieceRepository::class));
+        $job->handle(app(OmrSpool::class), app(PieceService::class), app(PieceRepository::class));
 
         return $job;
     }
@@ -169,13 +174,13 @@ class PdfScoreTest extends TestCase
             .$bar(5, $note(2).$note(1))                  // short last bar: allowed
             .'</part></score-partwise>';
 
-        $messages = (new \App\Services\Omr\ScoreSanity)->check($xml, 9);
+        $messages = (new ScoreSanity)->check($xml, 9);
 
         $this->assertCount(1, $messages);
         $this->assertStringContainsString('3 (3 of 4 beats), 4 (5 of 4 beats)', $messages[0]);
         $this->assertStringNotContainsString('2 (', $messages[0]);
-        $this->assertSame([], (new \App\Services\Omr\ScoreSanity)->check('<score-partwise><part-list/><part id="P1">'.$bar(1, $note(4)).$bar(2, $note(4)).'</part></score-partwise>', 2));
-        $this->assertNotSame([], (new \App\Services\Omr\ScoreSanity)->check('<score-partwise/>', 0));
+        $this->assertSame([], (new ScoreSanity)->check('<score-partwise><part-list/><part id="P1">'.$bar(1, $note(4)).$bar(2, $note(4)).'</part></score-partwise>', 2));
+        $this->assertNotSame([], (new ScoreSanity)->check('<score-partwise/>', 0));
     }
 
     #[Test]
@@ -226,7 +231,7 @@ class PdfScoreTest extends TestCase
             'title' => 'Both', 'instrument' => 'violin', 'default_bpm' => 70, 'score' => $this->xml(), 'pdf' => $this->pdf(),
         ]);
 
-        Queue::assertPushed(\App\Jobs\ParseMusicXml::class);
+        Queue::assertPushed(ParseMusicXml::class);
         Queue::assertNotPushed(ConvertPdfScore::class);
     }
 

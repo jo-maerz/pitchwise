@@ -1,14 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { judge, noteName, toleranceBandCents, expectedHz } from '../../resources/js/practice/pitch-math.js';
+import { classifyNote, noteName, toleranceBandCents, expectedHz } from '../../resources/js/practice/pitch-math.js';
 
-const cases = JSON.parse(readFileSync(new URL('../fixtures/verdict-cases.json', import.meta.url)));
+const cases = JSON.parse(readFileSync(new URL('../fixtures/pitch-rule-cases.json', import.meta.url)));
 
 test('the browser judges every shared case exactly like the PHP API', () => {
     for (const c of cases) {
-        const got = judge(c.expected_midi, c.detected_hz, c.clarity, c.mode, c.tolerance, c.reference_hz);
-        assert.equal(got.verdict, c.verdict, c.name);
+        const got = classifyNote(c.expected_midi, c.detected_hz, c.clarity, c.mode, c.tolerance, c.reference_hz);
+        assert.equal(got.outcome, c.outcome, c.name);
         assert.equal(got.cents, c.cents, `${c.name} (cents)`);
         assert.equal(got.detectedMidi, c.detected_midi, `${c.name} (detected midi)`);
     }

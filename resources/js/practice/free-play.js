@@ -1,4 +1,4 @@
-import { judge, nearestMidi, noteName } from './pitch-math.js';
+import { classifyNote, nearestMidi, noteName } from './pitch-math.js';
 import { median } from './timeline.js';
 
 /**
@@ -10,7 +10,6 @@ import { median } from './timeline.js';
 
 /** A different nearest note must last this many frames before it counts as a new note (ignores glitches and octave jumps). */
 export const SWITCH_FRAMES = 4;
-/** Silence this long ends a note. */
 export const GAP_MS = 100;
 /** Sounds shorter than this are bow noise or a stray overtone, not notes. */
 export const MIN_NOTE_MS = 90;
@@ -72,7 +71,7 @@ export class NoteSegmenter {
         if (durationMs < MIN_NOTE_MS) return null;
 
         const hz = median(frames.map((f) => f.hz));
-        const j = judge(midi, hz, null, this.mode, this.tolerance, this.referenceHz);
-        return { midi, name: noteName(midi), hz, cents: j.cents, verdict: j.verdict, startedAt, durationMs };
+        const j = classifyNote(midi, hz, null, this.mode, this.tolerance, this.referenceHz);
+        return { midi, name: noteName(midi), hz, cents: j.cents, outcome: j.outcome, startedAt, durationMs };
     }
 }

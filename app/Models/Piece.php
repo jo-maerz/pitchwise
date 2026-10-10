@@ -74,7 +74,6 @@ class Piece extends Model
         return in_array($this->parse_status, ['pending', 'converting'], true);
     }
 
-    /** Catalogue pieces plus the user's own uploads. */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         return $query->where(fn (Builder $q) => $q->whereNull('owner_id')->orWhere('owner_id', $user->id));

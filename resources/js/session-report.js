@@ -1,9 +1,9 @@
 import { renderPitchChart } from './pitch-chart.js';
-import { VERDICTS, VERDICT_LABELS } from './practice/pitch-math.js';
+import { OUTCOMES, OUTCOME_LABELS } from './practice/pitch-math.js';
 import { ScoreView } from './practice/score-view.js';
 
 /*
- * The run report: the score with every note coloured by its verdict, the offset written under
+ * The run report: the score with every note coloured by its outcome, the offset written under
  * each note, a detail card for the note you click, and the intonation-by-note chart.
  * If a bar is played twice (repeats), the note shows the last pass; the table lists both.
  */
@@ -30,8 +30,8 @@ if (dataEl) {
 }
 
 function offsetLabel(n) {
-    if (n.verdict === 'missed') return null;
-    if (n.verdict === 'wrong_note') return `\u2192${n.detected ?? '?'}`;
+    if (n.outcome === 'missed') return null;
+    if (n.outcome === 'wrong_note') return `\u2192${n.detected ?? '?'}`;
     const c = Math.round(n.cents);
     return c === 0 ? '0' : `${c > 0 ? '+' : MINUS}${Math.abs(c)}`;
 }
@@ -42,7 +42,7 @@ async function showScore(data) {
 
     const byIndex = new Map();
     for (const n of data.notes) byIndex.set(n.index, n); // a repeated bar: the last pass wins
-    for (const [index, n] of byIndex) score.colour(index, n.verdict);
+    for (const [index, n] of byIndex) score.colour(index, n.outcome);
     score.render('continuous');
     score.hideCursor();
 
@@ -104,7 +104,7 @@ async function showScore(data) {
         label.setAttribute('y', String(box.y + box.height + 13));
         label.setAttribute('text-anchor', 'middle');
         label.setAttribute('class', 'pi-offset-label');
-        label.setAttribute('data-verdict', n.verdict);
+        label.setAttribute('data-outcome', n.outcome);
         group.appendChild(label);
         labels.push(label);
     }
@@ -114,7 +114,6 @@ async function showScore(data) {
     toggle.addEventListener('change', apply);
     apply();
 
-    // Clicking a bar in "Bar by bar" jumps to its first note in the score.
     for (const bar of document.querySelectorAll('[data-bar]')) {
         const first = data.notes.filter((n) => n.measure === Number(bar.dataset.bar)).sort((a, b) => a.index - b.index)[0];
         if (!first) continue;
@@ -136,7 +135,7 @@ async function showScore(data) {
     }
 
     // Start on the worst note, so the card is never empty.
-    const worst = [...byIndex.values()].filter((n) => n.verdict !== 'in_tune')
+    const worst = [...byIndex.values()].filter((n) => n.outcome !== 'in_tune')
         .sort((a, b) => Math.abs(b.cents ?? 99) - Math.abs(a.cents ?? 99))[0];
     if (worst) select(worst.index);
 }
@@ -144,21 +143,21 @@ async function showScore(data) {
 function showDetail(n, data) {
     const card = $('#note-detail');
     card.hidden = false;
-    card.dataset.verdict = n.verdict;
+    card.dataset.outcome = n.outcome;
     card.querySelector('[data-detail-title]').textContent = `Bar ${n.measure}, note ${n.index + 1}: ${n.expected}`;
-    card.querySelector('[data-detail-verdict]').textContent = VERDICT_LABELS[n.verdict] ?? n.verdict;
+    card.querySelector('[data-detail-outcome]').textContent = OUTCOME_LABELS[n.outcome] ?? n.outcome;
     const c = n.cents;
     card.querySelector('[data-detail-text]').textContent = n.hz
         ? `Heard ${n.detected} at ${Number(n.hz).toFixed(1)} Hz`
             + (c === null ? '' : `: ${c > 0 ? '+' : c < 0 ? MINUS : ''}${Math.abs(Math.round(c))} cents`)
         : 'No clear pitch was heard for this note.';
 
-    // A small ruler from -50 to +50 cents with the in-tune band implied by the verdict colours.
+    // A small ruler from -50 to +50 cents with the in-tune band implied by the outcome colours.
     const ruler = card.querySelector('.pi-ruler');
     const band = data.tolerance.mode === 'cents' ? Math.min(50, data.tolerance.value) : 0; // Hz rules have no fixed band
     ruler.style.setProperty('--lo', `${50 - band}%`);
     ruler.style.setProperty('--hi', `${50 - band}%`);
     const marker = card.querySelector('[data-detail-marker]');
-    marker.hidden = c === null || n.verdict === 'missed';
+    marker.hidden = c === null || n.outcome === 'missed';
     if (!marker.hidden) marker.style.left = `${Math.max(0, Math.min(100, c + 50))}%`;
 }

@@ -25,6 +25,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['user_id', 'piece_id', 'finished_at']);
+            $table->index(['user_id', 'finished_at']);
             $table->index(['finished_at', 'aggregated_at']);
         });
     }

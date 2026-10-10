@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Services\PitchStatsAggregator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use PracticeApi\Verdict;
+use PracticeApi\PitchRule;
 
 /**
  * Fake but plausible practice history for the demo user, so the dashboard has something to show.
@@ -52,9 +52,9 @@ class DemoHistorySeeder extends Seeder
                 $spread = 26 - 12 * $skill;
                 $cents = $bias + $this->gauss() * $spread;
                 $missed = mt_rand(1, 100) <= 3;
-                $hz = $missed ? null : Verdict::expectedHz($note->midi_pitch) * 2 ** ($cents / 1200);
-                $j = Verdict::judge($note->midi_pitch, $hz, $missed ? null : 0.95);
-                $inTune += $j['verdict'] === Verdict::IN_TUNE ? 1 : 0;
+                $hz = $missed ? null : PitchRule::expectedHz($note->midi_pitch) * 2 ** ($cents / 1200);
+                $j = PitchRule::classify($note->midi_pitch, $hz, $missed ? null : 0.95);
+                $inTune += $j['outcome'] === PitchRule::IN_TUNE ? 1 : 0;
                 $rows[] = [
                     'session_id' => $session->id,
                     'note_index' => $note->note_index,
@@ -62,7 +62,7 @@ class DemoHistorySeeder extends Seeder
                     'detected_midi' => $j['detected_midi'],
                     'detected_hz' => $hz === null ? null : round($hz, 2),
                     'cents_offset' => $j['cents'],
-                    'verdict' => $j['verdict'],
+                    'outcome' => $j['outcome'],
                     'clarity' => $missed ? null : 0.95,
                 ];
             }
