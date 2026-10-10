@@ -69,5 +69,23 @@ class DemoContentTest extends TestCase
         $this->assertFalse(User::factory()->create()->can('view', $trumpet));
         $this->assertGreaterThanOrEqual(50, $demo->practiceSessions()->whereNotNull('finished_at')->count());
         $this->assertGreaterThan(5, $demo->practiceSessions()->distinct()->count('piece_id'));
+
+        $private = User::where('email', 'private@example.com')->sole();
+        $this->assertNull($private->organization_id);
+        $this->assertFalse($private->can('view', $trumpet));
+        $this->assertTrue($private->can('view', Piece::whereNull('organization_id')->first()));
+    }
+
+    #[Test]
+    public function demo_users_are_verified_even_if_they_existed_unverified_before_seeding(): void
+    {
+        Storage::fake('local');
+        User::factory()->unverified()->create(['email' => 'admin@example.com']);
+
+        $this->seed(DatabaseSeeder::class);
+
+        $demoEmails = ['admin@example.com', 'teacher@example.com', 'demo@example.com', 'private@example.com'];
+        $this->assertSame(4, User::whereIn('email', $demoEmails)->whereNotNull('email_verified_at')->count());
+        $this->actingAs(User::where('email', 'private@example.com')->sole())->get(route('dashboard'))->assertOk();
     }
 }

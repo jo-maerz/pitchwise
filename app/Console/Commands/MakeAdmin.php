@@ -21,6 +21,10 @@ class MakeAdmin extends Command
             return self::FAILURE;
         }
         $user->update(['role' => Role::Admin]);
+        // Whoever can run this vouches for the address, so the first admin is not stuck waiting for mail.
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
         $this->info("{$user->name} is now an admin.");
 
         return self::SUCCESS;

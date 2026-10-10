@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => auth()->check() ? redirect()->route('pieces.index') : view('welcome'));
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('/pieces', [PieceController::class, 'index'])->name('pieces.index');
@@ -47,10 +47,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/sessions/{session}', [PracticeSessionController::class, 'show'])->name('sessions.show');
 
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
     Route::middleware('can:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', AdminController::class)->name('index');
         Route::post('/organizations', [OrganizationController::class, 'store'])->name('organizations.store');
@@ -58,6 +54,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/organizations/{organization}', [OrganizationController::class, 'destroy'])->name('organizations.destroy');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     });
+});
+
+// Outside 'verified', so a mistyped email address can still be corrected.
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 require __DIR__.'/auth.php';

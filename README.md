@@ -78,7 +78,9 @@ php artisan queue:work                   # parses uploaded MusicXML, hands PDFs 
 php artisan schedule:work                # rolls finished runs into the dashboard stats every 5 min
 ```
 
-Open http://localhost:8000, log in as a demo user, **Pieces → ▶ Practise**. Seeded accounts (password `password`): `admin@example.com` (admin), `teacher@example.com` (organization admin of *Demo Music School*), `demo@example.com` (user in *Demo Music School*, with practice history). The browser asks for the microphone; that only works on `https://` or `localhost`.
+Open http://localhost:8000, log in as a demo user, **Pieces → ▶ Practise**. Seeded accounts (password `password`): `admin@example.com` (admin), `teacher@example.com` (organization admin of *Demo Music School*), `demo@example.com` (user in *Demo Music School*, with practice history), `private@example.com` (user without an organization: shared library only). The browser asks for the microphone; that only works on `https://` or `localhost`.
+
+New accounts must verify their email address before they can see anything but their profile (seeded accounts are already verified, and `db:seed` verifies them again if they were not). Locally `MAIL_MAILER=log`, so the mail with the link lands in `storage/logs/laravel.log`.
 
 Relevant `.env` keys (all in `.env.example`):
 
@@ -94,10 +96,12 @@ Replaces the three terminals. Six containers: `web` (Caddy: HTTPS, static files,
 
 ```bash
 cp .env.docker.example .env.docker
-# set APP_KEY (see the comment in the file), DB_PASSWORD and MYSQL_ROOT_PASSWORD
+# set APP_KEY (see the comment in the file), DB_PASSWORD, MYSQL_ROOT_PASSWORD and the MAIL_* keys
 docker compose up -d --build
 docker compose exec app su-exec www-data php artisan db:seed --force   # optional demo data
 ```
+
+The `MAIL_*` keys must point at a real SMTP server: new accounts cannot use the app until they click the link it sends (with `LOG_LEVEL=warning` the `log` mailer would drop it). Seeded accounts and admins made with `practice:make-admin` are already verified.
 
 Open https://localhost. Caddy signs `localhost` with its own CA, so the browser warns until you trust it:
 
@@ -152,7 +156,7 @@ Every user belongs to at most one **organization** (chosen when registering, "No
 - Rules: `User::canManageLibrary()`, `App\Models\Concerns\InLibrary` (visibility scope used by `Piece` and `Folder`), `PiecePolicy`, `FolderPolicy`, gate `admin`.
 - Folders nest (`folders.parent_id`). Managers rename them in place (the pencil next to a folder's name, `components/folder-name.blade.php`). Only empty folders can be deleted. Forms send a piece's place as one key: `root:shared`, `root:<organization id>` or `folder:<folder id>` (`LibraryService::resolve()`).
 - Deleting an organization deletes its folders, pieces, files and runs; its members stay without an organization, its organization admins become users.
-- The first admin of a fresh install: register, then `php artisan practice:make-admin you@example.com`.
+- The first admin of a fresh install: register, then `php artisan practice:make-admin you@example.com` (this also verifies their email address).
 - Pieces uploaded before this change have no organization, so they now sit in the shared library. Move or delete them as admin.
 
 ### Annotations
@@ -212,7 +216,7 @@ The playbook first had the wrong-note boundary at 100 cents. A clean semitone sl
 
 ## API reference
 
-All routes need `Authorization: Bearer <id>|<token>` with ability `practice:write`. Send JSON with `Accept: application/json`; numbers must be JSON numbers, not strings. Errors are Laravel's JSON: `{"message"}`, plus `"errors": {field: [messages]}` on `422`.
+All routes need `Authorization: Bearer <id>|<token>` with ability `practice:write`, from a user with a verified email address (`403` otherwise). Send JSON with `Accept: application/json`; numbers must be JSON numbers, not strings. Errors are Laravel's JSON: `{"message"}`, plus `"errors": {field: [messages]}` on `422`.
 
 | Method + path                        | Body                                                                                                                            | Success                                                                                          | Notable errors                                                                                                           |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
