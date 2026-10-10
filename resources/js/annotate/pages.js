@@ -53,18 +53,15 @@ export async function renderScorePages(url, container) {
     const view = new ScoreView(container);
     await view.load(url);
     view.osmd.setOptions({ pageFormat: 'A4_P', followCursor: false, pageBackgroundColor: '#FFFFFF' });
+    view.osmd.zoom = view.fixedPageZoom();
     view.osmd.render();
 
-    const backends = view.osmd.Drawer.Backends;
-    const pages = backends.map((backend, i) => {
-        const svg = backend.getSvgElement();
-        const el = backend.getInnerElement();
-        const { width, height } = svg.getBoundingClientRect();
+    const pages = view.pages().map(({ el, svg, width, height }, i, all) => {
         el.classList.add('pi-annotate-page', 'relative', 'mx-auto', 'shadow-sm');
         el.style.width = `${width}px`;
         el.style.height = `${height}px`;
         el.setAttribute('role', 'group');
-        el.setAttribute('aria-label', `Page ${i + 1} of ${backends.length}`);
+        el.setAttribute('aria-label', `Page ${i + 1} of ${all.length}`);
         return { el, width, height, picture: (scale) => svgToCanvas(svg, width, height, scale) };
     });
     return { pages };

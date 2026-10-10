@@ -16,16 +16,32 @@
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
-        <div class="mt-4">
-            <x-input-label for="organization_id" :value="__('Organization')" />
-            <select id="organization_id" name="organization_id" class="block mt-1 w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
-                <option value="">{{ __('No organization') }}</option>
-                @foreach ($organizations as $organization)
-                    <option value="{{ $organization->id }}" @selected((string) old('organization_id') === (string) $organization->id)>{{ $organization->name }}</option>
-                @endforeach
-            </select>
-            <p class="mt-1 text-sm text-gray-500">{{ __('Your school or orchestra. Without one you see the shared library only.') }}</p>
-            <x-input-error :messages="$errors->get('organization_id')" class="mt-2" />
+        <div class="mt-4" x-data="{ accountType: @js(old('account_type')) }">
+            <fieldset>
+                <legend class="block font-medium text-sm text-gray-700">{{ __('Are you a private user?') }}</legend>
+                <div class="mt-2 space-y-2 text-sm text-gray-700">
+                    <label class="flex items-start gap-2">
+                        <input type="radio" name="account_type" value="private" x-model="accountType" class="mt-0.5 text-indigo-600" @checked(old('account_type') === 'private') required>
+                        <span>{{ __('Yes, I practise on my own') }} <span class="block text-gray-500">{{ __('You see the shared library and keep your own annotations.') }}</span></span>
+                    </label>
+                    <label class="flex items-start gap-2">
+                        <input type="radio" name="account_type" value="organization" x-model="accountType" class="mt-0.5 text-indigo-600" @checked(old('account_type') === 'organization')>
+                        <span>{{ __('No, I belong to a school or orchestra') }} <span class="block text-gray-500">{{ __('You also see its library and its shared annotations.') }}</span></span>
+                    </label>
+                </div>
+            </fieldset>
+            <x-input-error :messages="$errors->get('account_type')" class="mt-2" />
+
+            <div class="mt-4" x-show="accountType === 'organization'" x-cloak>
+                <x-input-label for="organization" :value="__('Your institution')" />
+                <x-text-input id="organization" class="block mt-1 w-full" type="search" name="organization" list="organizations" :value="old('organization')" x-bind:required="accountType === 'organization'" autocomplete="off" placeholder="{{ __('Start typing its name') }}" />
+                <datalist id="organizations">
+                    @foreach ($organizations as $organization)
+                        <option value="{{ $organization->name }}"></option>
+                    @endforeach
+                </datalist>
+                <x-input-error :messages="$errors->get('organization')" class="mt-2" />
+            </div>
         </div>
 
         <!-- Password -->
