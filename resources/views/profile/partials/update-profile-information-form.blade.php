@@ -7,6 +7,11 @@
         <p class="mt-1 text-sm text-gray-600">
             {{ __("Update your account's profile information and email address.") }}
         </p>
+        <p class="mt-2 text-sm text-gray-600">
+            {{ __('Organization') }}: <span class="font-medium">{{ $user->organization?->name ?? __('None') }}</span>
+            · {{ __('Role') }}: <span class="font-medium">{{ $user->role->label() }}</span>
+            <span class="block text-gray-500">{{ __('An admin can change these.') }}</span>
+        </p>
     </header>
 
     <form id="send-verification" method="post" action="{{ route('verification.send') }}">
