@@ -2,22 +2,28 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Piece;
+use App\Services\LibraryService;
+use App\Support\Instruments;
+use App\Support\LibraryLocation;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StorePieceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->can('create', Piece::class) ?? false;
     }
 
     public function rules(): array
     {
         return [
+            'location' => ['required', 'string', 'max:40'],
             'title' => ['required', 'string', 'max:200'],
             'composer' => ['nullable', 'string', 'max:200'],
-            'instrument' => ['required', 'string', 'in:violin,viola,cello,double bass,flute,voice,other'],
+            'instrument' => ['required', 'string', Rule::in(Instruments::keys())],
             'default_bpm' => ['required', 'integer', 'between:30,240'],
             'score' => ['required', 'file', 'max:'.config('practice.max_pdf_kb')],
             // The original PDF next to a MusicXML score, to read along and to practise with the tuner alone.
@@ -28,7 +34,28 @@ class StorePieceRequest extends FormRequest
     /** MIME detection for MusicXML is unreliable, so check the extension and the first bytes ourselves. */
     public function after(): array
     {
-        return [fn (Validator $validator) => $this->checkScore($validator), fn (Validator $validator) => $this->checkPdf($validator)];
+        return [
+            fn (Validator $validator) => $this->checkLocation($validator),
+            fn (Validator $validator) => $this->checkScore($validator),
+            fn (Validator $validator) => $this->checkPdf($validator),
+        ];
+    }
+
+    /** The chosen library or folder, or null when the form left it out (editing keeps the current one). */
+    public function location(): ?LibraryLocation
+    {
+        return $this->filled('location') ? app(LibraryService::class)->resolve($this->string('location')) : null;
+    }
+
+    private function checkLocation(Validator $validator): void
+    {
+        if (! $this->filled('location')) {
+            return;
+        }
+        $location = $this->location();
+        if ($location === null || ! $this->user()->canManageLibrary($location->organizationId)) {
+            $validator->errors()->add('location', 'Choose a library or folder you manage.');
+        }
     }
 
     private function checkPdf(Validator $validator): void

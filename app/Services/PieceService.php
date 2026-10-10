@@ -10,6 +10,7 @@ use App\Repositories\PieceRepository;
 use App\Services\MusicXml\MusicXmlException;
 use App\Services\MusicXml\MusicXmlParser;
 use App\Services\Omr\ScoreSanity;
+use App\Support\LibraryLocation;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -28,14 +29,17 @@ class PieceService
      * $file is MusicXML (full practice) or a PDF (recognised into MusicXML, or used as it is). $pdf is an
      * optional PDF kept alongside MusicXML so the piece can also be practised from the original page.
      */
-    public function upload(User $owner, UploadedFile $file, array $details, ?UploadedFile $pdf = null): Piece
+    public function upload(User $owner, LibraryLocation $location, UploadedFile $file, array $details, ?UploadedFile $pdf = null): Piece
     {
+        $dir = $this->directory($location->organizationId);
         $paths = $this->isPdf($file)
-            ? ['source_pdf_path' => $this->storePdf($owner->id, $file)]
-            : ['musicxml_path' => $this->storeXml($owner->id, $file), 'source_pdf_path' => $pdf ? $this->storePdf($owner->id, $pdf) : null];
+            ? ['source_pdf_path' => $this->storePdf($dir, $file)]
+            : ['musicxml_path' => $this->storeXml($dir, $file), 'source_pdf_path' => $pdf ? $this->storePdf($dir, $pdf) : null];
 
         $piece = $this->pieces->create([
             'owner_id' => $owner->id,
+            'organization_id' => $location->organizationId,
+            'folder_id' => $location->folderId,
             'title' => $details['title'],
             'composer' => $details['composer'] ?? null,
             'instrument' => $details['instrument'] ?? 'violin',
@@ -54,30 +58,35 @@ class PieceService
         return strtolower($file->getClientOriginalExtension()) === 'pdf';
     }
 
-    private function storePdf(int $ownerId, UploadedFile $file): string
+    private function directory(?int $organizationId): string
     {
-        return $file->storeAs('pieces/'.$ownerId, Str::uuid().'.pdf', 'local');
+        return 'pieces/'.($organizationId === null ? 'shared' : 'org-'.$organizationId);
     }
 
-    private function storeXml(int $ownerId, UploadedFile $file): string
+    private function storePdf(string $dir, UploadedFile $file): string
+    {
+        return $file->storeAs($dir, Str::uuid().'.pdf', 'local');
+    }
+
+    private function storeXml(string $dir, UploadedFile $file): string
     {
         $extension = strtolower($file->getClientOriginalExtension()) === 'mxl' ? 'mxl' : 'musicxml';
 
-        return $file->storeAs('pieces/'.$ownerId, Str::uuid().'.'.$extension, 'local');
+        return $file->storeAs($dir, Str::uuid().'.'.$extension, 'local');
     }
 
     /**
      * Edit a piece's details, and optionally replace its files. MusicXML replaces the score and is read again;
      * a PDF replaces the stored PDF (and is recognised again only if the piece has no MusicXML of its own).
      */
-    public function update(Piece $piece, array $details, ?UploadedFile $file = null, ?UploadedFile $pdf = null): Piece
+    public function update(Piece $piece, array $details, ?LibraryLocation $location = null, ?UploadedFile $file = null, ?UploadedFile $pdf = null): Piece
     {
         $piece->update([
             'title' => $details['title'],
             'composer' => $details['composer'] ?? null,
             'instrument' => $details['instrument'],
             'default_bpm' => $details['default_bpm'],
-        ]);
+        ] + ($location ? ['organization_id' => $location->organizationId, 'folder_id' => $location->folderId] : []));
 
         $newXml = $file && ! $this->isPdf($file) ? $file : null;
         $newPdf = $file && $this->isPdf($file) ? $file : $pdf;
@@ -86,15 +95,16 @@ class PieceService
         }
 
         $disk = Storage::disk('local');
+        $dir = $this->directory($piece->organization_id);
         $changes = [];
 
         if ($newPdf !== null) {
             $disk->delete(array_filter([$piece->source_pdf_path]));
-            $changes['source_pdf_path'] = $this->storePdf($piece->owner_id, $newPdf);
+            $changes['source_pdf_path'] = $this->storePdf($dir, $newPdf);
         }
         if ($newXml !== null) {
             $disk->delete(array_filter([$piece->musicxml_path]));
-            $changes += ['musicxml_path' => $this->storeXml($piece->owner_id, $newXml), 'parse_status' => 'pending', 'review_notes' => null];
+            $changes += ['musicxml_path' => $this->storeXml($dir, $newXml), 'parse_status' => 'pending', 'review_notes' => null];
         } elseif ($piece->musicxml_path === null || $piece->needsReview()) {
             // The recognised score (if any) belongs to the old PDF: drop it and recognise the new one.
             $disk->delete(array_filter([$piece->musicxml_path]));
@@ -140,7 +150,7 @@ class PieceService
     /** Store the MusicXML the recogniser produced, then read its notes like any other upload. */
     public function attachRecognisedScore(Piece $piece, string $mxlPath, array $warnings = []): void
     {
-        $target = 'pieces/'.$piece->owner_id.'/'.Str::uuid().'.mxl';
+        $target = $this->directory($piece->organization_id).'/'.Str::uuid().'.mxl';
         Storage::disk('local')->put($target, file_get_contents($mxlPath));
         $piece->update(['musicxml_path' => $target]);
         $this->extractNotes($piece, $warnings, recognised: true);

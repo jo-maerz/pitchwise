@@ -78,6 +78,7 @@
 .pi-strings li.is-active { background: #e7f5e7; }
 
 [hidden] { display: none !important; }
+[x-cloak] { display: none !important; }
 
 /* Run report: offsets under the notes, clickable notes, detail ruler */
 .pi-offset-label { font-size: 10px; font-weight: 600; fill: var(--pi-v); stroke: none; pointer-events: none; }

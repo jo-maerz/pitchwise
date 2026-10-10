@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FolderController;
 use App\Http\Controllers\PieceController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PracticeSessionController;
@@ -23,6 +24,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/pieces/{piece}/edit', [PieceController::class, 'edit'])->name('pieces.edit');
     Route::put('/pieces/{piece}', [PieceController::class, 'update'])->name('pieces.update');
     Route::delete('/pieces/{piece}', [PieceController::class, 'destroy'])->name('pieces.destroy');
+
+    Route::get('/folders/{folder}', [PieceController::class, 'folder'])->name('folders.show');
+    Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
+    Route::put('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
+    Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('folders.destroy');
 
     Route::get('/pieces/{piece}/play-pdf', [PlayerController::class, 'pdf'])->name('player.pdf');
     Route::get('/pieces/{piece}/play', [PlayerController::class, 'show'])->name('player.show');
