@@ -22,6 +22,9 @@
                 @can('play', $piece)
                     <a href="{{ route('player.show', $piece) }}" class="inline-flex items-center px-4 py-2 bg-gray-800 rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">▶ {{ __('Practise') }}</a>
                 @endcan
+                @can('annotate', $piece)
+                    <a href="{{ route('annotations.show', $piece) }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50">✎ {{ __('Annotations') }}</a>
+                @endcan
                 @can('playPdf', $piece)
                     <a href="{{ route('player.pdf', $piece) }}" class="inline-flex items-center px-4 py-2 {{ $piece->isReady() ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' : 'bg-gray-800 text-white hover:bg-gray-700' }} rounded-md font-semibold text-xs uppercase tracking-widest"
                        title="Shows your PDF next to the live tuner. The notes are not followed or checked.">▶ {{ $piece->isReady() ? __('Practise from the PDF') : __('Practise with the PDF') }} · {{ __('tuner only') }}</a>
