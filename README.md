@@ -147,7 +147,7 @@ Every user belongs to at most one **organization** (chosen when registering, "No
 | --- | --- |
 | `admin` | everything: every library, the **Admin** page (`/admin`: organizations CRUD, each user's role and organization) |
 | `org_admin` | create, rename, delete folders and upload, edit, move, delete pieces in their organization's library |
-| `user` | browse and practise the shared library and their organization's library |
+| `user` | browse and practise the shared library and their organization's library; annotate their organization's pieces (see Annotations) |
 
 - Rules: `User::canManageLibrary()`, `App\Models\Concerns\InLibrary` (visibility scope used by `Piece` and `Folder`), `PiecePolicy`, `FolderPolicy`, gate `admin`.
 - Folders nest (`folders.parent_id`). Managers rename them in place (the pencil next to a folder's name, `components/folder-name.blade.php`). Only empty folders can be deleted. Forms send a piece's place as one key: `root:shared`, `root:<organization id>` or `folder:<folder id>` (`LibraryService::resolve()`).
@@ -155,10 +155,20 @@ Every user belongs to at most one **organization** (chosen when registering, "No
 - The first admin of a fresh install: register, then `php artisan practice:make-admin you@example.com`.
 - Pieces uploaded before this change have no organization, so they now sit in the shared library. Move or delete them as admin.
 
+### Annotations
+
+Pieces in an organization's library can be annotated on **✎ Annotations** (`/pieces/{id}/annotate`): stickers (dynamics *pp*–*ff*, *sfz*, hairpins, accent, fermata, breath mark, bowings), text, a pen and an eraser, drawn with [Fabric.js](https://fabricjs.com) over the PDF (pdf.js) or, without a PDF, the MusicXML on A4 pages (OSMD). Two layers per piece:
+
+- **Shared**: seen by every member of the organization. Edited by its organization admins and by members given the piece's instrument on the **Organization** page (`/organizations/{id}/members`, `users.annotation_instruments`, any number of instruments). Admins reach that page from the Admin page.
+- **Mine**: seen and edited only by its author.
+
+Shared-library pieces have no annotations; admins outside the organization neither see nor make them. Moving to another organization clears a user's annotation instruments. **Export PDF** builds the file in the browser with pdf-lib: a PDF piece keeps its original pages with the visible marks laid on top; a MusicXML piece becomes one picture per page. Marks are stored per page in page units, so they keep their place at any screen width; after a new upload the page warns that they may no longer sit on the right notes. Only shapes and text are accepted (`SaveAnnotationsRequest`), since other members load the shared layer.
+
 ### Seeded libraries
 
 - **Shared library** (`CatalogueSeeder`): `Warm-ups` (open strings, a two-octave G major scale), `Pieces` (Twinkle, Ode to Joy for violin and cello, Petzold's Minuet in G with repeats, Greensleeves in 6/8, the opening of Bach's Cello Suite No. 1 Prelude) `Winds/B♭ instruments` (clarinet, trumpet, tenor saxophone) and `Winds/E♭ instruments` (alto and baritone saxophone), written at the instrument's pitch, and five single-line exercises per instrument in `Scales/Violin` and `Scales/Cello`, following the patterns of Carl Flesch's *Scale System*: one-string scales, three-octave scale, arpeggios on the keynote, broken thirds, chromatic scale. The Flesch book itself is not public domain everywhere and has double stops the player cannot check, so these files are written for Pitchwise, not copied from an edition.
 - **Demo Music School** (`DemoSchoolSeeder`, uploaded by the teacher): `Beginners` (Frère Jacques for violin, Hot Cross Buns for flute, Mary Had a Little Lamb for clarinet in B♭) `Winter concert` (Jingle Bells for violin, cello and trumpet in B♭) and `Spring concert` (Happy Birthday for violin, cello, clarinet and alto saxophone; Yankee Doodle for flute, trumpet and tenor saxophone; every part sounds in F major).
+- `demo@example.com` may edit the shared annotations on violin, viola and cello pieces; `teacher@example.com` on all of Demo Music School's.
 - **Practice history** (`DemoHistorySeeder`): 60 runs over twelve weeks for `demo@example.com` on every violin piece they can see, scales and warm-ups most often; C♯ and F♯ start sharp and improve.
 
 Files: `database/seeders/scores/{pieces,scales/violin,scales/cello,winds,demo-school}`.
@@ -227,6 +237,7 @@ Get a token for manual testing with `php artisan tinker --execute 'echo app(App\
 | `organizations`     | id, name (unique) | |
 | `folders`           | id, organization_id (NULL = shared library), parent_id, name | only empty folders can be deleted |
 | `pieces`            | id, owner_id (uploader, NULL for seeded pieces), organization_id (NULL = shared library), folder_id, title, composer, instrument, musicxml_path, default_bpm, beats_per_measure, note_count, parse_status | `parse_status`: pending → ready / failed                                                                 |
+| `piece_annotations` | piece_id, user_id (NULL = the organization's shared layer), updated_by, source_path, pages (JSON: Fabric.js objects per page) | unique (piece_id, user_id) |
 | `piece_notes`       | piece_id, note_index, measure, midi_pitch, onset_beats, duration_beats                                                                | unique (piece_id, note_index); written by the parse job                                                  |
 | `practice_sessions` | user_id, piece_id, bpm, tolerance_mode, tolerance_value, reference_hz, latency_ms, started_at, finished_at, score_pct, aggregated_at  | index (user_id, piece_id, finished_at), index (user_id, finished_at), index (finished_at, aggregated_at) |
 | `note_results`      | session_id, note_index, expected_midi, detected_midi, detected_hz, cents_offset, outcome ENUM, clarity                                | unique (session_id, note_index)                                                                          |

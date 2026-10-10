@@ -3,8 +3,10 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AnnotationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FolderController;
+use App\Http\Controllers\OrganizationMemberController;
 use App\Http\Controllers\PieceController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PracticeSessionController;
@@ -27,6 +29,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/pieces/{piece}/edit', [PieceController::class, 'edit'])->name('pieces.edit');
     Route::put('/pieces/{piece}', [PieceController::class, 'update'])->name('pieces.update');
     Route::delete('/pieces/{piece}', [PieceController::class, 'destroy'])->name('pieces.destroy');
+
+    Route::get('/pieces/{piece}/annotate', [AnnotationController::class, 'show'])->name('annotations.show');
+    Route::put('/pieces/{piece}/annotations/{layer}', [AnnotationController::class, 'update'])->whereIn('layer', ['shared', 'mine'])->name('annotations.update');
+
+    Route::get('/organizations/{organization}/members', [OrganizationMemberController::class, 'index'])->name('organizations.members');
+    Route::put('/organizations/{organization}/members/{user}', [OrganizationMemberController::class, 'update'])->name('organizations.members.update');
 
     Route::get('/folders/{folder}', [PieceController::class, 'folder'])->name('folders.show');
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');

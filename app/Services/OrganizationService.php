@@ -18,7 +18,7 @@ class OrganizationService
     {
         DB::transaction(function () use ($organization) {
             $organization->users()->where('role', Role::OrgAdmin)->update(['role' => Role::User]);
-            $organization->users()->update(['organization_id' => null]);
+            $organization->users()->update(['organization_id' => null, 'annotation_instruments' => null]);
             $organization->pieces()->each(fn ($piece) => $this->pieces->delete($piece));
             $organization->delete();
         });
