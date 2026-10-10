@@ -18,7 +18,6 @@ class PieceRepository
         return $this->in($viewer, $organizationId, $folderId, $instrument)->paginate($perPage)->withQueryString();
     }
 
-    /** @return Collection<int, Piece> */
     public function allIn(User $viewer, ?int $organizationId, ?int $folderId, ?string $instrument = null): Collection
     {
         return $this->in($viewer, $organizationId, $folderId, $instrument)->get();

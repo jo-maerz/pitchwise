@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
         );
         User::firstOrCreate(
             ['email' => 'demo@example.com'],
-            ['name' => 'Demo Violinist', 'password' => 'password', 'email_verified_at' => now(), 'organization_id' => $school->id],
+            ['name' => 'Demo Violinist', 'password' => 'password', 'email_verified_at' => now(), 'organization_id' => $school->id, 'annotation_instruments' => ['violin', 'viola', 'cello']],
         );
 
         $this->call([

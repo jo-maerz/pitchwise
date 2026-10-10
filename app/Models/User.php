@@ -13,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'role', 'organization_id'])]
+#[Fillable(['name', 'email', 'password', 'role', 'organization_id', 'annotation_instruments'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -31,7 +31,18 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => Role::class,
+            'annotation_instruments' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Annotation rights are given by an organization: they do not travel to the next one.
+        static::saving(function (User $user) {
+            if ($user->isDirty('organization_id') && $user->exists) {
+                $user->annotation_instruments = null;
+            }
+        });
     }
 
     public function organization(): BelongsTo
@@ -51,6 +62,17 @@ class User extends Authenticatable
             || ($this->role === Role::OrgAdmin && $organizationId !== null && $organizationId === $this->organization_id);
     }
 
+    public function belongsToOrganization(?int $organizationId): bool
+    {
+        return $organizationId !== null && $organizationId === $this->organization_id;
+    }
+
+    /** May edit the organization's shared annotations on pieces for this instrument. */
+    public function canAnnotateInstrument(string $instrument): bool
+    {
+        return in_array($instrument, $this->annotation_instruments ?? [], true);
+    }
+
     public function canManageAnyLibrary(): bool
     {
         return $this->isAdmin() || ($this->role === Role::OrgAdmin && $this->organization_id !== null);
@@ -59,6 +81,11 @@ class User extends Authenticatable
     public function uploadedPieces(): HasMany
     {
         return $this->hasMany(Piece::class, 'owner_id');
+    }
+
+    public function annotations(): HasMany
+    {
+        return $this->hasMany(PieceAnnotation::class);
     }
 
     public function practiceSessions(): HasMany
