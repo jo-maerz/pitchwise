@@ -12,6 +12,10 @@ return [
 
     'reference_hz' => (float) env('PRACTICE_REFERENCE_HZ', 440),
 
+    // Password of the demo accounts (App\Support\Demo). Empty: "password", and no demo on a public site.
+    // Set, the demo is also reset every night (practice:reset-demo).
+    'demo_password' => env('DEMO_PASSWORD'),
+
     // A piece still 'pending' after this long is shown as stuck: reading a score takes seconds once a queue worker runs.
     'queue_stall_minutes' => (int) env('PRACTICE_QUEUE_STALL_MINUTES', 2),
 

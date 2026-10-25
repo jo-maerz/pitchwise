@@ -20,6 +20,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define('admin', fn (User $user) => $user->isAdmin());
+        // Everyone trying the demo logs in to the same accounts: they may use them, not take them over.
+        Gate::define('change-account', fn (User $user) => ! $user->isDemo());
 
         // Accounts cannot be created in bulk from one IP address, yet the hourly cap
         // still lets a whole class sign up from a school's single IP.

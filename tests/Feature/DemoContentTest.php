@@ -6,6 +6,7 @@ use App\Models\Folder;
 use App\Models\Organization;
 use App\Models\Piece;
 use App\Models\User;
+use App\Support\Demo;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -80,7 +81,7 @@ class DemoContentTest extends TestCase
     {
         Storage::fake('local');
         $this->seed(DatabaseSeeder::class);
-        $school = Organization::where('name', DatabaseSeeder::SCHOOL)->sole();
+        $school = Organization::where('name', Demo::SCHOOL)->sole();
 
         $this->assertSame(13, Piece::where('organization_id', $school->id)->where('parse_status', 'ready')->count());
         $spring = Folder::where('organization_id', $school->id)->where('name', 'Spring concert')->sole();

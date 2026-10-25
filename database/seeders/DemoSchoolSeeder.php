@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Organization;
 use App\Models\User;
 use App\Services\PieceService;
+use App\Support\Demo;
 use Illuminate\Database\Seeder;
 
 /** Demo Music School's own library, uploaded by its organization admin: only its members see it. */
@@ -31,7 +32,7 @@ class DemoSchoolSeeder extends Seeder
 
     public function run(PieceService $service): void
     {
-        $school = Organization::where('name', DatabaseSeeder::SCHOOL)->firstOrFail();
+        $school = Organization::where('name', Demo::SCHOOL)->firstOrFail();
         $teacher = User::where('email', 'teacher@example.com')->first();
 
         $this->seedPieces($service, self::PIECES, $school->id, $teacher?->id, 'pieces/org-'.$school->id);

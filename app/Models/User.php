@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Role;
+use App\Support\Demo;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -54,6 +55,20 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->role === Role::Admin;
+    }
+
+    /** A seeded demo account: visitors share its password. */
+    public function isDemo(): bool
+    {
+        return in_array($this->email, Demo::emails(), true);
+    }
+
+    /** Demo addresses (example.com) have no inbox: the mail would only bounce. */
+    public function sendPasswordResetNotification($token): void
+    {
+        if (! $this->isDemo()) {
+            parent::sendPasswordResetNotification($token);
+        }
     }
 
     /** Admins manage every library; organization admins only their own organization's. */

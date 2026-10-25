@@ -78,7 +78,7 @@ php artisan queue:work                   # parses uploaded MusicXML, hands PDFs 
 php artisan schedule:work                # rolls finished runs into the dashboard stats every 5 min
 ```
 
-Open http://localhost:8000, log in as a demo user, **Pieces → ▶ Practise**. Seeded accounts (password `password`): `admin@example.com` (admin), `teacher@example.com` (organization admin of *Demo Music School*), `demo@example.com` (user in *Demo Music School*, with practice history), `private@example.com` (user without an organization: shared library only). The browser asks for the microphone; that only works on `https://` or `localhost`.
+Open http://localhost:8000, log in as a demo user, **Pieces → ▶ Practise**. Seeded accounts (password `password`, or `DEMO_PASSWORD` if set): `admin@example.com` (admin), `teacher@example.com` (organization admin of *Demo Music School*), `demo@example.com` (user in *Demo Music School*, with practice history), `private@example.com` (user without an organization: shared library only). The browser asks for the microphone; that only works on `https://` or `localhost`.
 
 New accounts must verify their email address before they can see anything but their profile (seeded accounts are already verified, and `db:seed` verifies them again if they were not). Locally `MAIL_MAILER=log`, so the mail with the link lands in `storage/logs/laravel.log`.
 
@@ -98,7 +98,7 @@ Replaces the three terminals. Six containers: `web` (Caddy: HTTPS, static files,
 cp .env.docker.example .env.docker
 # set APP_KEY (see the comment in the file), DB_PASSWORD (again as MYSQL_PASSWORD), a different MYSQL_ROOT_PASSWORD and the MAIL_* keys
 docker compose up -d --build
-docker compose exec app su-exec www-data php artisan db:seed --force   # optional demo data, localhost only
+docker compose exec app su-exec www-data php artisan db:seed --force   # optional demo data; on a real domain only with DEMO_PASSWORD
 ```
 
 The `MAIL_*` keys must point at a real SMTP server: new accounts cannot use the app until they click the link it sends (with `LOG_LEVEL=warning` the `log` mailer would drop it). Seeded accounts and admins made with `practice:make-admin` are already verified.
@@ -111,7 +111,10 @@ docker compose cp web:/data/caddy/pki/authorities/local/root.crt ./caddy-root.cr
 
 **Real domain:** set `SITE_ADDRESS=app.example.com` and `APP_URL=https://app.example.com` in `.env.docker`, point DNS at the host, open ports 80 and 443. Caddy gets and renews a Let's Encrypt certificate itself. Keep the `caddy_data` volume. The host must be x86-64 for the `omr` image (see PDF scores).
 
-- **No demo data on a real domain:** every demo account has the password `password`, so the demo seeder refuses to run unless `APP_URL` is `localhost`. `php artisan db:seed --class=CatalogueSeeder --force` adds only the shared library, without accounts. Make the first admin with `practice:make-admin` (see Organizations, roles and folders).
+- **First admin:** register, then `practice:make-admin` (see Organizations, roles and folders).
+- **Demo for visitors** (optional): set `DEMO_PASSWORD` in `.env.docker` to at least 12 characters, run `docker compose up -d`, then `docker compose exec app su-exec www-data php artisan db:seed --force`. That adds the shared library and the demo accounts `teacher@example.com`, `demo@example.com` and `private@example.com` with that password. There is no demo admin on a real domain, because anyone with the shared password could take the role away from you. Without `DEMO_PASSWORD` the demo seeder refuses to run on a real domain, and `php artisan db:seed --class=CatalogueSeeder --force` adds only the shared library.
+  - Visitors share these accounts, so their name, email address and password cannot be changed, they cannot be deleted, and no password reset mail is sent for them (gate `change-account`).
+  - Every night at 03:00 (UTC) the `scheduler` container runs `practice:reset-demo`. It deletes Demo Music School's pieces and folders (with every run and annotation on them) and the demo accounts (with their runs, statistics and tokens, which also signs out anyone using them), then seeds them again with `DemoSeeder`. People who registered into Demo Music School with their own accounts stay members. The shared library and everyone else's data are not touched. Run the command by hand to reset at once.
 - **Database user:** the app connects as `MYSQL_USER`, which MySQL creates with access to `practice_insights` only, the first time the `dbdata` volume is set up. An older install whose volume was set up with the app connecting as `root` keeps working; to move it to its own user, create it once, then put it in `DB_USERNAME`/`DB_PASSWORD` (and `MYSQL_USER`/`MYSQL_PASSWORD`) and run `docker compose up -d`:
 
   ```bash
@@ -175,7 +178,7 @@ Shared-library pieces have no annotations; admins outside the organization neith
 
 - **Shared library** (`CatalogueSeeder`): `Warm-ups` (open strings, a two-octave G major scale), `Pieces` (Twinkle, Ode to Joy for violin and cello, Petzold's Minuet in G with repeats, Greensleeves in 6/8, the opening of Bach's Cello Suite No. 1 Prelude) `Winds/B♭ instruments` (clarinet, trumpet, tenor saxophone) and `Winds/E♭ instruments` (alto and baritone saxophone), written at the instrument's pitch, and five single-line exercises per instrument in `Scales/Violin` and `Scales/Cello`, following the patterns of Carl Flesch's *Scale System*: one-string scales, three-octave scale, arpeggios on the keynote, broken thirds, chromatic scale. The Flesch book itself is not public domain everywhere and has double stops the player cannot check, so these files are written for Pitchwise, not copied from an edition.
 - **Demo Music School** (`DemoSchoolSeeder`, uploaded by the teacher): `Beginners` (Frère Jacques for violin, Hot Cross Buns for flute, Mary Had a Little Lamb for clarinet in B♭) `Winter concert` (Jingle Bells for violin, cello and trumpet in B♭) and `Spring concert` (Happy Birthday for violin, cello, clarinet and alto saxophone; Yankee Doodle for flute, trumpet and tenor saxophone; every part sounds in F major).
-- `demo@example.com` may edit the shared annotations on violin, viola and cello pieces; `teacher@example.com` on all of Demo Music School's.
+- **Demo accounts** (`DemoSeeder`, list in `App\Support\Demo`): `demo@example.com` may edit the shared annotations on violin, viola and cello pieces; `teacher@example.com` on all of Demo Music School's. `DatabaseSeeder` runs `CatalogueSeeder`, then `DemoSeeder`.
 - **Practice history** (`DemoHistorySeeder`): 60 runs over twelve weeks for `demo@example.com` on every violin piece they can see, scales and warm-ups most often; C♯ and F♯ start sharp and improve.
 
 Files: `database/seeders/scores/{pieces,scales/violin,scales/cello,winds,demo-school}`.
@@ -257,8 +260,8 @@ Which notes count — the parser and the browser's note map use the same rules: 
 ## Tests
 
 ```bash
-php artisan test     # 122 tests: parser edge cases, pitch-rule fixture, uploads + policies, player token,
-                     # report, aggregation, dashboard, libraries, annotations, email verification, demo data and the player API
+php artisan test     # 129 tests: parser edge cases, pitch-rule fixture, uploads + policies, player token,
+                     # report, aggregation, dashboard, libraries, annotations, email verification, demo data, demo accounts and their nightly reset, and the player API
 npm test             # 31 tests: pitch-rule fixture (same file as PHP), timeline, report, annotations,
                      # and pitchy on synthetic bowed tones with vibrato (needs npm install)
 vendor/bin/pint      # code style
