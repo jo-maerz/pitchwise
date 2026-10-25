@@ -137,7 +137,7 @@ A piece can hold both files. The MusicXML gives the full player (note map, outco
 
 The PDF page (`resources/views/player/pdf.blade.php`, `resources/js/pdf-player.js`, pdf.js draws the pages) has no notes to follow, so the target is **the nearest note** to what you play, as on the standalone tuner. `practice/free-play.js` (`NoteSegmenter`, tested in `tests/js/free-play.test.mjs`) cuts the pitch frames into played notes and the page lists each with its offset in cents. A different pitch must last 4 frames to count as a new note, silence ends a note after 100 ms, sounds under 90 ms are dropped. The page and the piece page say that results may be restricted and inaccurate (a wrong note is judged against its neighbour). **Nothing from this mode is saved**: no session, no report, no dashboard stats, because the API only accepts notes that exist in `piece_notes`. Saving nearest-note results as pitch stats would be a separate feature.
 
-**Verified:** PDF page drawn in a browser (2-page PDF), and a synthetic tone fed through the whole chain (microphone → pitchy → nearest note → log): +40 cents on A4 shown as "Too high", −15 on B4 as "In tune", −35 on C5 as "Too low". Not verified with a real microphone or instrument, and not on a phone.
+**Verified:** PDF page drawn in a browser (2-page PDF), and a synthetic tone fed through the whole chain (microphone → pitchy → nearest note → log): +40 cents on A4 shown as "Too high", −15 on B4 as "In tune", −35 on C5 as "Too low". Also tested with real instruments through the microphone, including on phones.
 
 ### Why there is no composer.lock
 
