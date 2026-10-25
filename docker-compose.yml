@@ -1,5 +1,13 @@
 # Whole stack: docker compose up -d --build
 # First-time setup is in README.md ("Docker").
+
+# Docker keeps container logs without limit by default; cap them so they cannot fill the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 x-app: &app
   build:
     context: .
@@ -7,6 +15,7 @@ x-app: &app
   image: practice-insights-app
   env_file: .env.docker
   restart: unless-stopped
+  logging: *logging
   volumes:
     - storage:/var/www/html/storage   # uploaded scores: shared by site, queue worker and scheduler
   depends_on:
@@ -22,6 +31,7 @@ services:
     image: practice-insights-web
     env_file: .env.docker
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"     # redirects to https; also used for certificate issuance
       - "443:443"
@@ -58,6 +68,7 @@ services:
       target: omr
     image: practice-insights-omr
     restart: unless-stopped
+    logging: *logging
     environment:
       OMR_SPOOL: /storage/app/private/omr
     volumes:
@@ -74,6 +85,7 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
+    logging: *logging
     env_file: .env.docker
     environment:
       MYSQL_DATABASE: practice_insights
