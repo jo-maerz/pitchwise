@@ -95,6 +95,25 @@ class MusicXmlParserTest extends TestCase
     }
 
     #[Test]
+    public function it_refuses_an_mxl_that_unpacks_past_the_limit(): void
+    {
+        $mxl = tempnam(sys_get_temp_dir(), 'mxl');
+        $zip = new ZipArchive;
+        $zip->open($mxl, ZipArchive::OVERWRITE);
+        $zip->addFromString('score.xml', '<score-partwise>'.str_repeat(' ', 4096).'</score-partwise>');
+        $zip->close();
+
+        try {
+            (new MusicXmlParser(maxUnpackedBytes: 1024))->parseFile($mxl);
+            $this->fail('an oversized .mxl was unpacked');
+        } catch (MusicXmlException $e) {
+            $this->assertStringContainsString('too large', $e->getMessage());
+        } finally {
+            unlink($mxl);
+        }
+    }
+
+    #[Test]
     public function the_demo_catalogue_scores_parse(): void
     {
         $dir = dirname(__DIR__, 2).'/database/seeders/scores';

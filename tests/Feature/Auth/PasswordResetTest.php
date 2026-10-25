@@ -30,6 +30,15 @@ class PasswordResetTest extends TestCase
         Notification::assertSentTo($user, ResetPassword::class);
     }
 
+    public function test_reset_link_requests_from_one_address_are_rate_limited(): void
+    {
+        for ($i = 0; $i < 6; $i++) {
+            $this->post('/forgot-password', ['email' => "someone{$i}@example.com"])->assertRedirect();
+        }
+
+        $this->post('/forgot-password', ['email' => 'someone@example.com'])->assertTooManyRequests();
+    }
+
     public function test_reset_password_screen_can_be_rendered(): void
     {
         Notification::fake();

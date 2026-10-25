@@ -6,6 +6,7 @@ use App\Enums\Role;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class DatabaseSeeder extends Seeder
 {
@@ -13,6 +14,8 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        $this->refuseOnPublicSites();
+
         $school = Organization::firstOrCreate(['name' => self::SCHOOL]);
 
         $demoUsers = [
@@ -34,5 +37,14 @@ class DatabaseSeeder extends Seeder
             DemoSchoolSeeder::class,
             DemoHistorySeeder::class,
         ]);
+    }
+
+    /** Every demo account has the password "password": fine on this machine, never on a site others can reach. */
+    private function refuseOnPublicSites(): void
+    {
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+        if (app()->isProduction() && ! in_array($host, ['localhost', '127.0.0.1'], true)) {
+            throw new RuntimeException("Demo data is not seeded on {$host}: every demo account has the password \"password\". Seed CatalogueSeeder alone for the shared library.");
+        }
     }
 }

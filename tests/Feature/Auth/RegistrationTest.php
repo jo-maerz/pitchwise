@@ -71,4 +71,13 @@ class RegistrationTest extends TestCase
         }
         $this->assertGuest();
     }
+
+    public function test_sign_ups_from_one_address_are_rate_limited(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $this->post('/register', [])->assertSessionHasErrors();
+        }
+
+        $this->post('/register', [])->assertTooManyRequests();
+    }
 }

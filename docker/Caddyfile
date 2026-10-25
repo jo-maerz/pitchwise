@@ -11,6 +11,9 @@
 		Referrer-Policy strict-origin-when-cross-origin
 		# The tuner needs the microphone; nothing else is allowed to ask for it.
 		Permissions-Policy "microphone=(self), camera=(), geolocation=()"
+		# No other site may show these pages inside a frame (clickjacking).
+		X-Frame-Options DENY
+		Content-Security-Policy "frame-ancestors 'none'"
 		-Server
 	}
 

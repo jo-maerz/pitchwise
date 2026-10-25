@@ -24,6 +24,11 @@ class MusicXmlParser
 {
     private const STEPS = ['C' => 0, 'D' => 2, 'E' => 4, 'F' => 5, 'G' => 7, 'A' => 9, 'B' => 11];
 
+    /** An .mxl upload is at most 4 MB, but a zip can unpack a hundredfold: past this the worker would run out of memory. */
+    public const MAX_UNPACKED_BYTES = 32 * 1024 * 1024;
+
+    public function __construct(private readonly int $maxUnpackedBytes = self::MAX_UNPACKED_BYTES) {}
+
     public function parseFile(string $path): ParsedScore
     {
         return $this->parseString($this->readXml($path));
@@ -337,7 +342,7 @@ class MusicXmlParser
             throw new MusicXmlException('The .mxl archive could not be opened.');
         }
         try {
-            $container = $zip->getFromName('META-INF/container.xml');
+            $container = $this->unpack($zip, 'META-INF/container.xml');
             $root = null;
             if ($container !== false) {
                 $xml = @simplexml_load_string($container, options: LIBXML_NONET);
@@ -352,7 +357,7 @@ class MusicXmlParser
                     }
                 }
             }
-            $content = $root ? $zip->getFromName($root) : false;
+            $content = $root ? $this->unpack($zip, $root) : false;
             if ($content === false) {
                 throw new MusicXmlException('No score found inside the .mxl archive.');
             }
@@ -361,6 +366,19 @@ class MusicXmlParser
         } finally {
             $zip->close();
         }
+    }
+
+    private function unpack(ZipArchive $zip, string $name): string|false
+    {
+        $size = $zip->statName($name)['size'] ?? null;
+        if ($size === null) {
+            return false;
+        }
+        if ($size > $this->maxUnpackedBytes) {
+            throw new MusicXmlException('The score inside the .mxl archive is too large to read.');
+        }
+
+        return $zip->getFromName($name);
     }
 
     private function element(XMLReader $reader): \SimpleXMLElement

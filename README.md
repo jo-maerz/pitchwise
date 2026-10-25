@@ -48,7 +48,7 @@ Stack as built: PHP 8.3, Laravel 13.34, Breeze 2 (Blade), Sanctum 4, PHPUnit 12,
 Requirements: PHP ≥ 8.3 with `pdo_mysql`, `xmlreader`, `zip`; Composer; Node 20+; MySQL 8.
 
 ```bash
-composer install            # no composer.lock is shipped (see below); this resolves and writes one
+composer install            # installs the versions pinned in composer.lock
 cp .env.example .env
 php artisan key:generate
 ```
@@ -96,9 +96,9 @@ Replaces the three terminals. Six containers: `web` (Caddy: HTTPS, static files,
 
 ```bash
 cp .env.docker.example .env.docker
-# set APP_KEY (see the comment in the file), DB_PASSWORD, MYSQL_ROOT_PASSWORD and the MAIL_* keys
+# set APP_KEY (see the comment in the file), DB_PASSWORD (again as MYSQL_PASSWORD), a different MYSQL_ROOT_PASSWORD and the MAIL_* keys
 docker compose up -d --build
-docker compose exec app su-exec www-data php artisan db:seed --force   # optional demo data
+docker compose exec app su-exec www-data php artisan db:seed --force   # optional demo data, localhost only
 ```
 
 The `MAIL_*` keys must point at a real SMTP server: new accounts cannot use the app until they click the link it sends (with `LOG_LEVEL=warning` the `log` mailer would drop it). Seeded accounts and admins made with `practice:make-admin` are already verified.
@@ -109,9 +109,16 @@ Open https://localhost. Caddy signs `localhost` with its own CA, so the browser 
 docker compose cp web:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt   # then add it to your keychain
 ```
 
-**Real domain:** set `SITE_ADDRESS=app.example.com` and `APP_URL=https://app.example.com` in `.env.docker`, point DNS at the host, open ports 80 and 443. Caddy gets and renews a Let's Encrypt certificate itself. Keep the `caddy_data` volume.
+**Real domain:** set `SITE_ADDRESS=app.example.com` and `APP_URL=https://app.example.com` in `.env.docker`, point DNS at the host, open ports 80 and 443. Caddy gets and renews a Let's Encrypt certificate itself. Keep the `caddy_data` volume. The host must be x86-64 for the `omr` image (see PDF scores).
 
-Data lives in the volumes `dbdata` (MySQL) and `storage` (uploaded scores). Back both up. `docker compose down` keeps them; `down -v` deletes them.
+- **No demo data on a real domain:** every demo account has the password `password`, so the demo seeder refuses to run unless `APP_URL` is `localhost`. `php artisan db:seed --class=CatalogueSeeder --force` adds only the shared library, without accounts. Make the first admin with `practice:make-admin` (see Organizations, roles and folders).
+- **Database user:** the app connects as `MYSQL_USER`, which MySQL creates with access to `practice_insights` only, the first time the `dbdata` volume is set up. An older install whose volume was set up with the app connecting as `root` keeps working; to move it to its own user, create it once, then put it in `DB_USERNAME`/`DB_PASSWORD` (and `MYSQL_USER`/`MYSQL_PASSWORD`) and run `docker compose up -d`:
+
+  ```bash
+  docker compose exec db mysql -uroot -p -e "CREATE USER 'practice_insights'@'%' IDENTIFIED BY 'a-new-password'; GRANT ALL ON practice_insights.* TO 'practice_insights'@'%';"
+  ```
+
+Data lives in the volumes `dbdata` (MySQL) and `storage` (uploaded scores). Back both up. `docker compose down` keeps them; `down -v` deletes them. Container logs are capped at 5 × 10 MB per service.
 
 ### PDF scores (Audiveris)
 
@@ -122,7 +129,7 @@ Recognition is a guess, so a PDF-sourced piece **cannot be practised until its o
 - **Docker:** the `omr` service does all of this. It is `linux/amd64` only (Audiveris ships an Ubuntu x86-64 package with its own Java), so on Apple Silicon it runs under emulation: slower, still works. Image ≈ 1 GB.
 - **Without Docker:** install Audiveris, then `AUDIVERIS=audiveris OMR_SPOOL=storage/app/private/omr sh docker/omr/watch.sh` next to `queue:work`.
 - **Limits:** PDFs up to 20 MB; Audiveris refuses pages over 20 megapixels (use A4/Letter pages). Works on clean printed parts; handwriting, skewed photos and dense piano scores come out poorly. Only the first movement is read.
-- **Verified:** a PDF engraved from the demo "Twinkle" score came back with all 42 notes, pitches and durations identical, through the real container. Not verified: scans, multi-page PDFs, the in-browser review preview (OSMD) and the full `docker compose up` stack.
+- **Verified:** a PDF engraved from the demo "Twinkle" score came back with all 42 notes, pitches and durations identical, through the real container. The full `docker compose up` stack starts and serves the site over HTTPS on localhost (Apple Silicon), also from a fresh `.env.docker.example`. Not verified: scans, multi-page PDFs, the in-browser review preview (OSMD) and a real domain's Let's Encrypt certificate.
 
 ### MusicXML + PDF, and PDF-only practice
 
@@ -138,10 +145,6 @@ A piece can hold both files. The MusicXML gives the full player (note map, outco
 The PDF page (`resources/views/player/pdf.blade.php`, `resources/js/pdf-player.js`, pdf.js draws the pages) has no notes to follow, so the target is **the nearest note** to what you play, as on the standalone tuner. `practice/free-play.js` (`NoteSegmenter`, tested in `tests/js/free-play.test.mjs`) cuts the pitch frames into played notes and the page lists each with its offset in cents. A different pitch must last 4 frames to count as a new note, silence ends a note after 100 ms, sounds under 90 ms are dropped. The page and the piece page say that results may be restricted and inaccurate (a wrong note is judged against its neighbour). **Nothing from this mode is saved**: no session, no report, no dashboard stats, because the API only accepts notes that exist in `piece_notes`. Saving nearest-note results as pitch stats would be a separate feature.
 
 **Verified:** PDF page drawn in a browser (2-page PDF), and a synthetic tone fed through the whole chain (microphone → pitchy → nearest note → log): +40 cents on A4 shown as "Too high", −15 on B4 as "In tune", −35 on C5 as "Too low". Also tested with real instruments through the microphone, including on phones.
-
-### Why there is no composer.lock
-
-This first version was built in a sandbox without Packagist or npm access; PHP packages were mirrored from GitHub tags. That lock file pointed at local paths, so it was removed. Run `composer install` once and commit the `composer.lock` it writes; same for `package-lock.json` after `npm install`.
 
 ## Organizations, roles and folders
 
@@ -254,9 +257,9 @@ Which notes count — the parser and the browser's note map use the same rules: 
 ## Tests
 
 ```bash
-php artisan test     # 80 tests: parser edge cases, pitch-rule fixture, uploads + policies, player token,
-                     # report, aggregation, dashboard, and the player API
-npm test             # 14 tests: pitch-rule fixture (same file as PHP), timeline, report,
+php artisan test     # 122 tests: parser edge cases, pitch-rule fixture, uploads + policies, player token,
+                     # report, aggregation, dashboard, libraries, annotations, email verification, demo data and the player API
+npm test             # 31 tests: pitch-rule fixture (same file as PHP), timeline, report, annotations,
                      # and pitchy on synthetic bowed tones with vibrato (needs npm install)
 vendor/bin/pint      # code style
 ```
