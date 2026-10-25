@@ -12,6 +12,9 @@ return [
 
     'reference_hz' => (float) env('PRACTICE_REFERENCE_HZ', 440),
 
+    // A piece still 'pending' after this long is shown as stuck: reading a score takes seconds once a queue worker runs.
+    'queue_stall_minutes' => (int) env('PRACTICE_QUEUE_STALL_MINUTES', 2),
+
     // Upload limit for MusicXML files, in kilobytes.
     'max_upload_kb' => 4096,
 

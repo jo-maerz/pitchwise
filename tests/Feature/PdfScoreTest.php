@@ -141,6 +141,7 @@ class PdfScoreTest extends TestCase
         $this->runJob($piece);
 
         $this->assertSame('failed', $piece->fresh()->parse_status);
+        $this->assertSame('Audiveris found no music in this PDF.', $piece->fresh()->parse_error);
     }
 
     #[Test]

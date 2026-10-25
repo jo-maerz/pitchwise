@@ -72,7 +72,60 @@ class PieceTest extends TestCase
             'title' => 'Only rests', 'instrument' => 'violin', 'default_bpm' => 60, 'score' => $file,
         ]);
 
-        $this->assertSame('failed', Piece::sole()->parse_status);
+        $piece = Piece::sole();
+        $this->assertSame('failed', $piece->parse_status);
+        $this->assertSame('No pitched notes found in the first part.', $piece->parse_error);
+        $this->actingAs($user)->get(route('pieces.show', $piece))
+            ->assertSee('The notes could not be read from this file')
+            ->assertSee('No pitched notes found in the first part.');
+    }
+
+    #[Test]
+    public function an_unexpected_error_in_the_parse_job_marks_the_piece_failed_instead_of_leaving_it_pending(): void
+    {
+        $piece = Piece::factory()->create(['parse_status' => 'pending']);
+
+        (new ParseMusicXml($piece))->failed(new \RuntimeException('Database went away'));
+
+        $piece->refresh();
+        $this->assertSame('failed', $piece->parse_status);
+        $this->assertNotNull($piece->parse_error);
+    }
+
+    #[Test]
+    public function a_piece_no_worker_has_picked_up_is_shown_as_stuck(): void
+    {
+        $user = User::factory()->admin()->create();
+        $piece = Piece::factory()->create(['parse_status' => 'pending', 'title' => 'Canon']);
+
+        $this->actingAs($user)->get(route('pieces.show', $piece))
+            ->assertSee('Reading notes…')
+            ->assertDontSee('The notes have not been read yet');
+
+        $this->travel(config('practice.queue_stall_minutes') + 1)->minutes();
+
+        $this->actingAs($user)->get(route('pieces.show', $piece))
+            ->assertSee('The notes have not been read yet')
+            ->assertSee('php artisan queue:work');
+        $this->actingAs($user)->get(route('pieces.index'))
+            ->assertSee('Waiting to be read');
+    }
+
+    #[Test]
+    public function a_new_file_clears_the_old_failure_reason(): void
+    {
+        Storage::fake('local');
+        Queue::fake();
+        $user = User::factory()->admin()->create();
+        $piece = Piece::factory()->for($user, 'owner')->create(['parse_status' => 'failed', 'parse_error' => 'This is not a MusicXML score.']);
+
+        $this->actingAs($user)->put(route('pieces.update', $piece), [
+            'title' => $piece->title, 'instrument' => 'violin', 'default_bpm' => 72, 'score' => $this->scoreUpload(),
+        ])->assertRedirect();
+
+        $piece->refresh();
+        $this->assertSame('pending', $piece->parse_status);
+        $this->assertNull($piece->parse_error);
     }
 
     #[Test]

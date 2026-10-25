@@ -40,14 +40,20 @@
             @endif
 
             <div class="bg-white shadow-sm sm:rounded-lg p-6 grid sm:grid-cols-4 gap-4 text-sm">
-                <div><div class="text-gray-500">Status</div><div class="font-medium">{{ ['pending' => 'Reading notes…', 'converting' => 'Recognising the PDF…', 'needs_review' => 'Needs your check', 'pdf_only' => 'PDF + tuner only', 'ready' => 'Ready to play', 'failed' => 'Could not read the file'][$piece->parse_status] }}</div></div>
+                <div><div class="text-gray-500">Status</div><div class="font-medium">{{ $piece->isStalled() ? 'Waiting to be read' : (['pending' => 'Reading notes…', 'converting' => 'Recognising the PDF…', 'needs_review' => 'Needs your check', 'pdf_only' => 'PDF + tuner only', 'ready' => 'Ready to play', 'failed' => 'Could not read the file'][$piece->parse_status] ?? $piece->parse_status) }}</div></div>
                 <div><div class="text-gray-500">Notes checked</div><div class="font-medium tabular-nums">{{ $piece->note_count }}</div></div>
                 <div><div class="text-gray-500">Default tempo</div><div class="font-medium tabular-nums">♩ = {{ $piece->default_bpm }}</div></div>
                 <div><div class="text-gray-500">Count-in</div><div class="font-medium tabular-nums">{{ $piece->beats_per_measure }} beats</div></div>
             </div>
 
-            @if ($piece->parse_status === 'pending')
-                <p class="text-sm text-gray-600">The queue worker is reading the score. If this stays here, start it with <code>php artisan queue:work</code>.</p>
+            @if ($piece->isStalled())
+                <div class="bg-amber-50 border border-amber-200 sm:rounded-lg p-6 space-y-2">
+                    <h3 class="font-semibold text-amber-900">The notes have not been read yet</h3>
+                    <p class="text-sm text-amber-900">Reading a score takes a few seconds, but this one has been waiting since {{ $piece->updated_at->diffForHumans() }}. The background worker that reads scores is probably not running.</p>
+                    <p class="text-sm text-amber-900">Whoever runs this site can start it with <code>php artisan queue:work</code> (or <code>composer dev</code>, which also starts the website). The piece is read as soon as it runs, and this page updates by itself.</p>
+                </div>
+            @elseif ($piece->parse_status === 'pending')
+                <p class="text-sm text-gray-600">Reading the notes from your score. This page updates by itself.</p>
             @elseif ($piece->parse_status === 'converting')
                 <p class="text-sm text-gray-600">Audiveris is recognising the notes in your PDF. This can take a few minutes; the page refreshes by itself. If it stays here, check that the <code>omr</code> container is running.</p>
             @endif
@@ -55,12 +61,26 @@
             @if ($piece->parse_status === 'failed' && $piece->hasPdf())
                 <div class="bg-amber-50 border border-amber-200 sm:rounded-lg p-6 space-y-3">
                     <h3 class="font-semibold text-amber-900">The notes could not be read from this file</h3>
+                    @if ($piece->parse_error)
+                        <p class="text-sm text-amber-900">Reason: {{ $piece->parse_error }}</p>
+                    @endif
                     <p class="text-sm text-amber-900">You can still practise from your PDF with the live tuner, or upload a MusicXML file for note-by-note checking.</p>
                     @can('update', $piece)
                         <div class="flex flex-wrap items-center gap-3">
                             <form method="POST" action="{{ route('pieces.use-pdf', $piece) }}">@csrf<x-primary-button>{{ __('Use the PDF with the tuner') }}</x-primary-button></form>
                             <a href="{{ route('pieces.edit', $piece) }}" class="text-sm text-indigo-700 hover:underline">Upload MusicXML instead</a>
                         </div>
+                    @endcan
+                </div>
+            @elseif ($piece->parse_status === 'failed')
+                <div class="bg-red-50 border border-red-200 sm:rounded-lg p-6 space-y-3">
+                    <h3 class="font-semibold text-red-900">The notes could not be read from this file</h3>
+                    @if ($piece->parse_error)
+                        <p class="text-sm text-red-900">Reason: {{ $piece->parse_error }}</p>
+                    @endif
+                    <p class="text-sm text-red-900">Export the score again as MusicXML (.musicxml or .mxl) from your notation program and upload it, or upload the PDF to practise with the tuner.</p>
+                    @can('update', $piece)
+                        <a href="{{ route('pieces.edit', $piece) }}" class="inline-block text-sm text-indigo-700 hover:underline">Upload a new file</a>
                     @endcan
                 </div>
             @endif

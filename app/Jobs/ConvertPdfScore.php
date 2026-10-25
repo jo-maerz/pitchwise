@@ -62,7 +62,7 @@ class ConvertPdfScore implements ShouldQueue
             }
             $pieces->attachRecognisedScore($piece, $result['path'], $result['warnings']);
         } catch (MusicXmlException $e) {
-            $repository->markFailed($piece);
+            $repository->markFailed($piece, $e->getMessage());
             Log::info('PDF recognition failed', ['piece' => $piece->id, 'reason' => $e->getMessage()]);
         } finally {
             $spool->clear($piece);
@@ -74,7 +74,7 @@ class ConvertPdfScore implements ShouldQueue
     {
         $piece = $this->piece->fresh();
         if ($piece && in_array($piece->parse_status, ['pending', 'converting'], true)) {
-            app(PieceRepository::class)->markFailed($piece);
+            app(PieceRepository::class)->markFailed($piece, 'The score recogniser did not answer in time.');
             app(OmrSpool::class)->clear($piece);
         }
     }
