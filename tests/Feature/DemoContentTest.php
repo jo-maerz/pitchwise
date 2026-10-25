@@ -19,6 +19,33 @@ class DemoContentTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
+    public function demo_accounts_are_not_seeded_on_a_public_site(): void
+    {
+        $this->app['env'] = 'production';
+        config(['app.url' => 'https://pitchwise.example.com']);
+
+        try {
+            $this->app->make(DatabaseSeeder::class)->setContainer($this->app)->__invoke();
+            $this->fail('the demo seeder ran on a public site');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('pitchwise.example.com', $e->getMessage());
+        }
+        $this->assertSame(0, User::count());
+    }
+
+    #[Test]
+    public function the_local_docker_install_can_still_seed_demo_data(): void
+    {
+        Storage::fake('local');
+        $this->app['env'] = 'production';
+        config(['app.url' => 'https://localhost']);
+
+        $this->app->make(DatabaseSeeder::class)->setContainer($this->app)->__invoke();
+
+        $this->assertTrue(User::where('email', 'admin@example.com')->exists());
+    }
+
+    #[Test]
     public function the_shared_library_has_flesch_scales_for_violin_and_cello_and_showcase_pieces(): void
     {
         Storage::fake('local');
