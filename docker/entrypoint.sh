@@ -4,7 +4,7 @@ cd /var/www/html
 
 if [ -z "$APP_KEY" ]; then
     echo "APP_KEY is empty. Generate one with:" >&2
-    echo "  docker compose run --rm --no-deps -e APP_KEY=x app php artisan key:generate --show" >&2
+    echo '  echo "base64:$(openssl rand -base64 32)"' >&2
     echo "and put it in .env.docker." >&2
     exit 1
 fi

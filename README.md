@@ -96,7 +96,8 @@ Replaces the three terminals. Six containers: `web` (Caddy: HTTPS, static files,
 
 ```bash
 cp .env.docker.example .env.docker
-# set APP_KEY (see the comment in the file), DB_PASSWORD (again as MYSQL_PASSWORD), a different MYSQL_ROOT_PASSWORD and the MAIL_* keys
+echo "base64:$(openssl rand -base64 32)"   # paste the output as APP_KEY
+# then set DB_PASSWORD (again as MYSQL_PASSWORD), a different MYSQL_ROOT_PASSWORD and the MAIL_* keys
 docker compose up -d --build
 docker compose exec app su-exec www-data php artisan db:seed --force   # optional demo data; on a real domain only with DEMO_PASSWORD
 ```
