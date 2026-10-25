@@ -15,7 +15,7 @@ class Piece extends Model
     protected $fillable = [
         'owner_id', 'organization_id', 'folder_id', 'title', 'composer', 'instrument', 'musicxml_path',
         'default_bpm', 'beats_per_measure', 'note_count', 'parse_status',
-        'source_pdf_path', 'review_notes',
+        'source_pdf_path', 'review_notes', 'parse_error',
     ];
 
     protected function casts(): array
@@ -83,5 +83,12 @@ class Piece extends Model
     public function isProcessing(): bool
     {
         return in_array($this->parse_status, ['pending', 'converting'], true);
+    }
+
+    /** Waiting far longer than a parse takes: no queue worker has picked the job up. */
+    public function isStalled(): bool
+    {
+        return $this->parse_status === 'pending'
+            && $this->updated_at?->lt(now()->subMinutes(config('practice.queue_stall_minutes')));
     }
 }

@@ -83,11 +83,12 @@ class AdminTest extends TestCase
     #[Test]
     public function the_first_admin_is_made_from_the_command_line(): void
     {
-        $user = User::factory()->create(['email' => 'boss@example.com']);
+        $user = User::factory()->unverified()->create(['email' => 'boss@example.com']);
 
         $this->artisan('practice:make-admin', ['email' => 'boss@example.com'])->assertSuccessful();
         $this->artisan('practice:make-admin', ['email' => 'nobody@example.com'])->assertFailed();
 
         $this->assertTrue($user->fresh()->isAdmin());
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
     }
 }

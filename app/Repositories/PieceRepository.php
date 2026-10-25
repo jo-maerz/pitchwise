@@ -9,6 +9,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PieceRepository
 {
@@ -55,9 +56,9 @@ class PieceRepository
         });
     }
 
-    public function markFailed(Piece $piece): void
+    public function markFailed(Piece $piece, ?string $reason = null): void
     {
-        $piece->update(['parse_status' => 'failed']);
+        $piece->update(['parse_status' => 'failed', 'parse_error' => $reason === null ? null : Str::limit($reason, 250)]);
     }
 
     /** @return Collection<int, PieceNote> */

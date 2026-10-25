@@ -104,11 +104,11 @@ class PieceService
         }
         if ($newXml !== null) {
             $disk->delete(array_filter([$piece->musicxml_path]));
-            $changes += ['musicxml_path' => $this->storeXml($dir, $newXml), 'parse_status' => 'pending', 'review_notes' => null];
+            $changes += ['musicxml_path' => $this->storeXml($dir, $newXml), 'parse_status' => 'pending', 'review_notes' => null, 'parse_error' => null];
         } elseif ($piece->musicxml_path === null || $piece->needsReview()) {
             // The recognised score (if any) belongs to the old PDF: drop it and recognise the new one.
             $disk->delete(array_filter([$piece->musicxml_path]));
-            $changes += ['musicxml_path' => null, 'note_count' => 0, 'parse_status' => 'pending', 'review_notes' => null];
+            $changes += ['musicxml_path' => null, 'note_count' => 0, 'parse_status' => 'pending', 'review_notes' => null, 'parse_error' => null];
             $piece->notes()->delete();
         }
 
@@ -130,7 +130,7 @@ class PieceService
         try {
             $score = $this->parser->parseFile($path);
         } catch (MusicXmlException $e) {
-            $this->pieces->markFailed($piece);
+            $this->pieces->markFailed($piece, $e->getMessage());
             throw $e;
         }
 
@@ -161,7 +161,7 @@ class PieceService
     {
         Storage::disk('local')->delete(array_filter([$piece->musicxml_path]));
         $piece->notes()->delete();
-        $piece->update(['musicxml_path' => null, 'note_count' => 0, 'parse_status' => 'pdf_only', 'review_notes' => null]);
+        $piece->update(['musicxml_path' => null, 'note_count' => 0, 'parse_status' => 'pdf_only', 'review_notes' => null, 'parse_error' => null]);
     }
 
     public function confirmRecognition(Piece $piece): void

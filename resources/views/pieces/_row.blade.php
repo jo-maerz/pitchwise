@@ -6,6 +6,8 @@
     <div class="text-sm text-gray-500 tabular-nums">
         @if ($piece->parse_status === 'ready')
             {{ $piece->note_count }} notes · {{ $piece->my_runs }} {{ Str::plural('run', $piece->my_runs) }}
+        @elseif ($piece->isStalled())
+            <span class="text-amber-700">Waiting to be read</span>
         @elseif ($piece->parse_status === 'pending')
             Reading notes…
         @elseif ($piece->parse_status === 'converting')
